@@ -96,12 +96,15 @@ const Index = () => {
                   <span className="text-sm">Consentimiento informado digital</span>
                 </div>
               </div>
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg text-center">
-                <p className="text-sm text-gray-600 mb-2">
-                  ¿Recibiste un enlace de tu médico?
-                </p>
+              <Button 
+                className="w-full mt-6 bg-green-600 hover:bg-green-700 text-lg py-3"
+                onClick={() => navigate('/verify')}
+              >
+                Verificar mi DNI
+              </Button>
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg text-center">
                 <p className="text-xs text-gray-500">
-                  Usa el enlace enviado a tu teléfono para acceder
+                  Ingrese su DNI para acceder a su evaluación
                 </p>
               </div>
             </CardContent>
