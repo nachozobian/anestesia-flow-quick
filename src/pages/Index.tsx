@@ -108,55 +108,6 @@ const Index = () => {
           </Card>
         </div>
 
-        {/* Process Flow */}
-        <Card className="max-w-4xl mx-auto">
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">Flujo del Sistema</CardTitle>
-            <CardDescription className="text-center">
-              Proceso completo de evaluación médica en 4 pasos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-4 gap-6">
-              <div className="text-center">
-                <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
-                  1
-                </div>
-                <h3 className="font-semibold mb-2">Importar Pacientes</h3>
-                <p className="text-gray-600 text-sm">
-                  Administrador carga datos del paciente
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-green-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
-                  2
-                </div>
-                <h3 className="font-semibold mb-2">Envío de Enlace</h3>
-                <p className="text-gray-600 text-sm">
-                  Sistema envía enlace único por SMS/WhatsApp
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-purple-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
-                  3
-                </div>
-                <h3 className="font-semibold mb-2">Evaluación IA</h3>
-                <p className="text-gray-600 text-sm">
-                  Paciente interactúa con chatbot médico
-                </p>
-              </div>
-              <div className="text-center">
-                <div className="w-12 h-12 bg-orange-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
-                  4
-                </div>
-                <h3 className="font-semibold mb-2">Reporte Final</h3>
-                <p className="text-gray-600 text-sm">
-                  Generación automática con alertas médicas
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Footer */}
