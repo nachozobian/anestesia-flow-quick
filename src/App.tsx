@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import AdminPanel from "./pages/AdminPanel";
 import EnhancedPatientDashboard from "./pages/EnhancedPatientDashboard";
+import TestTokenDashboard from "./pages/TestTokenDashboard";
 import DNIVerification from "./pages/DNIVerification";
 import NotFound from "./pages/NotFound";
 
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/admin" element={<AdminPanel />} />
           <Route path="/verify" element={<DNIVerification />} />
+          <Route path="/test-token" element={<TestTokenDashboard />} />
           <Route path="/patient/:token" element={<EnhancedPatientDashboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
