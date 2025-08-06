@@ -128,8 +128,8 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
         content: msg.content
       }));
 
-      // Get AI response using the bedrock-chat function
-      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('bedrock-chat', {
+      // Get AI response using the openai-chat function
+      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('openai-chat', {
         body: {
           message: input.trim(),
           patientData: patientData,
@@ -139,6 +139,15 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
 
       if (aiError) {
         throw aiError;
+      }
+
+      // Check if recommendations were generated
+      if (aiResponse.recommendations_generated) {
+        // Show success message and maybe trigger navigation to recommendations
+        toast({
+          title: "Recomendaciones Generadas",
+          description: "El asistente ha generado recomendaciones médicas específicas para usted.",
+        });
       }
 
       // Save AI response
