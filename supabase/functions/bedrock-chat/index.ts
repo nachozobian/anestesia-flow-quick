@@ -83,6 +83,23 @@ serve(async (req) => {
       throw new Error('Message is required')
     }
 
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!
+    const supabase = createClient(supabaseUrl, supabaseKey)
+
+    // Get patient medical responses for additional context
+    let patientResponses = null
+    if (patientData?.id) {
+      const { data } = await supabase
+        .from('patient_responses')
+        .select('*')
+        .eq('patient_id', patientData.id)
+        .single()
+      
+      patientResponses = data
+    }
+
     // Prepare the request for Amazon Bedrock
     const region = Deno.env.get('AWS_REGION') || 'us-east-1'
     const modelId = 'anthropic.claude-3-haiku-20240307-v1:0' // Claude 3 Haiku for medical consultation
@@ -101,8 +118,26 @@ Información del paciente:
 - Nombre: ${patientData?.name || 'No disponible'}
 - Procedimiento: ${patientData?.procedure || 'No especificado'}
 - Fecha del procedimiento: ${patientData?.procedure_date || 'No especificada'}
+- DNI: ${patientData?.dni || 'No disponible'}
 
-Mantén un tono profesional pero empático. Haz preguntas específicas y relevantes para la evaluación preanestésica.`
+${patientResponses ? `
+Información médica previa del formulario:
+- Alergias: ${patientResponses.has_allergies ? (patientResponses.allergies || 'Sí, pero no especificadas') : 'No'}
+- Medicamentos actuales: ${patientResponses.current_medications || 'No especificados'}
+- Historia médica: ${patientResponses.medical_history || 'No especificada'}
+- Cirugías previas: ${patientResponses.previous_surgeries || 'No especificadas'}
+- Historia familiar: ${patientResponses.family_history || 'No especificada'}
+- Fumador: ${patientResponses.smoking ? 'Sí' : 'No'}
+- Consumo de alcohol: ${patientResponses.alcohol ? 'Sí' : 'No'}
+- Ejercicio: ${patientResponses.exercise || 'No especificado'}
+- Dieta: ${patientResponses.diet || 'No especificada'}
+- Horas de sueño: ${patientResponses.sleep_hours || 'No especificado'}
+- Nivel de estrés (1-10): ${patientResponses.stress_level || 'No especificado'}
+- Preocupaciones adicionales: ${patientResponses.additional_concerns || 'Ninguna'}
+- Contacto de emergencia: ${patientResponses.emergency_contact_name || 'No especificado'}
+` : ''}
+
+Mantén un tono profesional pero empático. Basándote en la información del formulario, haz preguntas específicas y relevantes para completar la evaluación preanestésica. Si identificas factores de riesgo, profundiza en esos temas.`
 
     // Build conversation messages
     const messages = [

@@ -115,11 +115,25 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
         throw userError;
       }
 
+      // Get patient data for context
+      const { data: patientData } = await supabase
+        .from('patients')
+        .select('*')
+        .eq('id', patientId)
+        .single();
+
+      // Get conversation history for context
+      const conversationHistory = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+
       // Get AI response using the bedrock-chat function
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('bedrock-chat', {
         body: {
           message: input.trim(),
-          context: "You are a medical AI assistant helping with pre-anesthetic evaluation. Ask relevant follow-up questions based on the patient's medical form responses. Be professional, empathetic, and focused on gathering important medical information."
+          patientData: patientData,
+          conversationHistory: conversationHistory
         }
       });
 
