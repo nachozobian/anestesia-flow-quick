@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
+import DataProcessingConsent from '@/components/DataProcessingConsent';
 import PatientChat from '@/components/PatientChat';
 import RecommendationsView from '@/components/RecommendationsView';
 import InformedConsent from '@/components/InformedConsent';
@@ -72,6 +73,7 @@ interface Patient {
 // Step enum
 enum Step {
   FORM = 'form',
+  DATA_CONSENT = 'data_consent',
   CHAT = 'chat', 
   RECOMMENDATIONS = 'recommendations',
   CONSENT = 'consent',
@@ -87,6 +89,7 @@ const EnhancedPatientDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<Step>(Step.FORM);
+  const [isTestToken, setIsTestToken] = useState(false);
   const [hasResponse, setHasResponse] = useState(false);
 
   const form = useForm<FormData>({
@@ -122,6 +125,15 @@ const EnhancedPatientDashboard = () => {
       }
 
       setPatient(patientData);
+
+      // Check if this is a test token
+      const isTestPatient = patientData.token.startsWith('test-token');
+      setIsTestToken(isTestPatient);
+
+      // Set initial step based on token type
+      if (isTestPatient) {
+        setCurrentStep(Step.DATA_CONSENT);
+      }
 
       // Check if patient has already submitted responses
       const { data: existingResponse } = await supabase
@@ -161,6 +173,8 @@ const EnhancedPatientDashboard = () => {
           setCurrentStep(Step.CONSENT);
         } else if (chatHistory && chatHistory.length > 0) {
           setCurrentStep(Step.RECOMMENDATIONS);
+        } else if (isTestPatient) {
+          setCurrentStep(Step.CHAT);
         } else {
           setCurrentStep(Step.CHAT);
         }
@@ -227,7 +241,9 @@ const EnhancedPatientDashboard = () => {
   };
 
   const getStepProgress = () => {
-    const steps = Object.values(Step);
+    const steps = isTestToken 
+      ? [Step.DATA_CONSENT, Step.CHAT, Step.RECOMMENDATIONS, Step.CONSENT, Step.COMPLETE]
+      : Object.values(Step);
     const currentIndex = steps.indexOf(currentStep);
     return ((currentIndex + 1) / steps.length) * 100;
   };
@@ -235,6 +251,8 @@ const EnhancedPatientDashboard = () => {
   const getStepIcon = (step: Step) => {
     switch (step) {
       case Step.FORM:
+        return <FileText className="w-4 h-4" />;
+      case Step.DATA_CONSENT:
         return <FileText className="w-4 h-4" />;
       case Step.CHAT:
         return <MessageSquare className="w-4 h-4" />;
@@ -251,6 +269,8 @@ const EnhancedPatientDashboard = () => {
     switch (step) {
       case Step.FORM:
         return "Formulario Médico";
+      case Step.DATA_CONSENT:
+        return "Consentimiento de Datos";
       case Step.CHAT:
         return "Consulta con IA";
       case Step.RECOMMENDATIONS:
@@ -263,7 +283,9 @@ const EnhancedPatientDashboard = () => {
   };
 
   const isStepCompleted = (step: Step) => {
-    const steps = Object.values(Step);
+    const steps = isTestToken 
+      ? [Step.DATA_CONSENT, Step.CHAT, Step.RECOMMENDATIONS, Step.CONSENT, Step.COMPLETE]
+      : Object.values(Step);
     const stepIndex = steps.indexOf(step);
     const currentIndex = steps.indexOf(currentStep);
     return stepIndex < currentIndex || (step === currentStep && currentStep === Step.COMPLETE);
@@ -377,7 +399,10 @@ const EnhancedPatientDashboard = () => {
               
               {/* Step indicators */}
               <div className="flex justify-between">
-                {Object.values(Step).map((step) => (
+                {(isTestToken 
+                  ? [Step.DATA_CONSENT, Step.CHAT, Step.RECOMMENDATIONS, Step.CONSENT, Step.COMPLETE]
+                  : Object.values(Step)
+                ).map((step) => (
                   <div key={step} className="flex flex-col items-center space-y-1">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                       isStepCompleted(step) 
@@ -401,6 +426,10 @@ const EnhancedPatientDashboard = () => {
         </Card>
 
         {/* Step Content */}
+        {currentStep === Step.DATA_CONSENT && (
+          <DataProcessingConsent onAccept={() => setCurrentStep(Step.CHAT)} />
+        )}
+
         {currentStep === Step.FORM && (
           <Card>
             <CardHeader>
