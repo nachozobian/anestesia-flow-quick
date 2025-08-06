@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
@@ -25,6 +25,7 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -187,6 +188,16 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    
+    // Auto-resize textarea
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+    }
+  };
+
   if (initialLoading) {
     return (
       <Card className="w-full h-96 flex items-center justify-center">
@@ -252,19 +263,22 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
           </div>
         </ScrollArea>
         <div className="border-t p-4">
-          <div className="flex space-x-2">
-            <Input
+          <div className="flex items-end space-x-2">
+            <Textarea
+              ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyPress}
               placeholder="Escriba su mensaje..."
               disabled={loading}
-              className="flex-1"
+              className="flex-1 min-h-[40px] max-h-[120px] resize-none"
+              rows={1}
             />
             <Button 
               onClick={sendMessage} 
               disabled={loading || !input.trim()}
               size="icon"
+              className="h-10 w-10 shrink-0"
             >
               {loading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -275,7 +289,7 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
           </div>
           <div className="mt-4 flex justify-between items-center">
             <p className="text-xs text-muted-foreground">
-              Presione Enter para enviar
+              Presione Enter para enviar • Shift+Enter para nueva línea
             </p>
             <Button 
               variant="outline" 
