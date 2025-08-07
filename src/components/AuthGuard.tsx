@@ -20,7 +20,6 @@ export const AuthGuard = ({ children, requiredRoles = [] }: AuthGuardProps) => {
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -88,56 +87,17 @@ export const AuthGuard = ({ children, requiredRoles = [] }: AuthGuardProps) => {
     setIsSubmitting(true);
 
     try {
-      if (isSignUp) {
-        const redirectUrl = `${window.location.origin}/admin`;
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: redirectUrl
-          }
-        });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-        if (error) {
-          toast({
-            title: "Error en registro",
-            description: error.message,
-            variant: "destructive",
-          });
-        } else {
-          // Auto-assign role based on email for testing
-          if (data.user) {
-            let role: 'Owner' | 'Nurse' = 'Nurse'; // Default role
-            if (email === 'admin@clinica.com') {
-              role = 'Owner';
-            }
-            
-            // Insert role directly
-            await supabase.from('user_roles').insert({
-              user_id: data.user.id,
-              role: role as any
-            });
-          }
-          
-          toast({
-            title: "Usuario creado",
-            description: "Puedes iniciar sesión directamente (no necesitas confirmar email)",
-          });
-          setIsSignUp(false);
-        }
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+      if (error) {
+        toast({
+          title: "Error en login",
+          description: error.message,
+          variant: "destructive",
         });
-
-        if (error) {
-          toast({
-            title: "Error en login",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
       }
     } catch (error) {
       toast({
@@ -169,7 +129,7 @@ export const AuthGuard = ({ children, requiredRoles = [] }: AuthGuardProps) => {
           <CardHeader className="text-center">
             <CardTitle>Panel de Administración Médico</CardTitle>
             <CardDescription>
-              {isSignUp ? 'Crear nueva cuenta' : 'Iniciar sesión para continuar'}
+              Iniciar sesión para acceder al panel médico
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -196,20 +156,11 @@ export const AuthGuard = ({ children, requiredRoles = [] }: AuthGuardProps) => {
               </div>
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSignUp ? 'Registrarse' : 'Iniciar Sesión'}
+                Iniciar Sesión
               </Button>
             </form>
-            <div className="mt-4 text-center">
-              <Button
-                variant="link"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm"
-              >
-                {isSignUp 
-                  ? '¿Ya tienes cuenta? Inicia sesión' 
-                  : '¿No tienes cuenta? Regístrate'
-                }
-              </Button>
+            <div className="mt-4 text-center text-sm text-muted-foreground">
+              Usuarios predefinidos: admin@clinica.com | nurse@clinica.com
             </div>
           </CardContent>
         </Card>
