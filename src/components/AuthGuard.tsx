@@ -90,7 +90,7 @@ export const AuthGuard = ({ children, requiredRoles = [] }: AuthGuardProps) => {
     try {
       if (isSignUp) {
         const redirectUrl = `${window.location.origin}/admin`;
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -105,10 +105,25 @@ export const AuthGuard = ({ children, requiredRoles = [] }: AuthGuardProps) => {
             variant: "destructive",
           });
         } else {
+          // Auto-assign role based on email for testing
+          if (data.user) {
+            let role: 'Owner' | 'Nurse' = 'Nurse'; // Default role
+            if (email === 'admin@clinica.com') {
+              role = 'Owner';
+            }
+            
+            // Insert role directly
+            await supabase.from('user_roles').insert({
+              user_id: data.user.id,
+              role: role as any
+            });
+          }
+          
           toast({
-            title: "Registro exitoso",
-            description: "Revisa tu email para confirmar tu cuenta",
+            title: "Usuario creado",
+            description: "Puedes iniciar sesión directamente (no necesitas confirmar email)",
           });
+          setIsSignUp(false);
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
