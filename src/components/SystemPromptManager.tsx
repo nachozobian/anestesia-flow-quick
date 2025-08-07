@@ -30,6 +30,10 @@ export const SystemPromptManager = ({ userRole }: SystemPromptManagerProps) => {
   const { toast } = useToast();
 
   const isOwner = userRole === 'Owner';
+  
+  // Debug logging
+  console.log('SystemPromptManager - userRole:', userRole);
+  console.log('SystemPromptManager - isOwner:', isOwner);
 
   useEffect(() => {
     fetchSystemPrompt();
@@ -118,16 +122,18 @@ export const SystemPromptManager = ({ userRole }: SystemPromptManagerProps) => {
           <div>
             <CardTitle className="flex items-center gap-2">
               <Eye className="h-5 w-5" />
-              Prompt del Sistema
-            </CardTitle>
-            <CardDescription>
-              {isOwner 
-                ? 'Puedes visualizar y modificar el prompt que usa el asistente médico'
-                : 'Visualización del prompt actual del asistente médico'
-              }
-            </CardDescription>
-          </div>
-          {isOwner && !isEditing && (
+               Prompt del Sistema
+             </CardTitle>
+             <CardDescription>
+               {isOwner 
+                 ? 'Puedes visualizar y modificar el prompt que usa el asistente médico'
+                 : 'Visualización del prompt actual del asistente médico'
+               }
+               <br />
+               <small className="text-xs">Debug: Role = {userRole || 'null'}, isOwner = {isOwner.toString()}</small>
+             </CardDescription>
+           </div>
+           {isOwner && !isEditing && (
             <Button 
               onClick={() => setIsEditing(true)}
               variant="outline"
