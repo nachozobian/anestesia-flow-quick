@@ -207,8 +207,8 @@ IMPORTANTE: Sigue la estructura paso a paso, haz UNA PREGUNTA A LA VEZ de forma 
                         },
                         priority: { 
                           type: 'string', 
-                          enum: ['alta', 'media', 'baja'],
-                          description: 'Prioridad de la recomendación' 
+                          enum: ['high', 'medium', 'low'],
+                          description: 'Prioridad de la recomendación (high, medium, low)' 
                         }
                       },
                       required: ['title', 'description', 'category', 'priority']
