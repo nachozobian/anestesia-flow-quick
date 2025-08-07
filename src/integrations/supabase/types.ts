@@ -294,6 +294,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_admin_roles: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       has_role: {
         Args: {
           _user_id: string
