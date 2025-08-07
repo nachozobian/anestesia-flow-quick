@@ -30,10 +30,6 @@ export const SystemPromptManager = ({ userRole }: SystemPromptManagerProps) => {
   const { toast } = useToast();
 
   const isOwner = userRole === 'Owner';
-  
-  // Debug logging
-  console.log('SystemPromptManager - userRole:', userRole);
-  console.log('SystemPromptManager - isOwner:', isOwner);
 
   useEffect(() => {
     fetchSystemPrompt();
@@ -129,8 +125,6 @@ export const SystemPromptManager = ({ userRole }: SystemPromptManagerProps) => {
                  ? 'Puedes visualizar y modificar el prompt que usa el asistente médico'
                  : 'Visualización del prompt actual del asistente médico'
                }
-               <br />
-               <small className="text-xs">Debug: Role = {userRole || 'null'}, isOwner = {isOwner.toString()}</small>
              </CardDescription>
            </div>
            {isOwner && !isEditing && (
