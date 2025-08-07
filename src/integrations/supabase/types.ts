@@ -301,6 +301,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      setup_admin_users: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       app_role: "Owner" | "Nurse"
