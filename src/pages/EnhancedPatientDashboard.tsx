@@ -130,12 +130,7 @@ const EnhancedPatientDashboard = () => {
       const isTestPatient = patientData.token.startsWith('test-token');
       setIsTestToken(isTestPatient);
 
-      // Set initial step based on token type
-      if (isTestPatient) {
-        setCurrentStep(Step.DATA_CONSENT);
-      }
-
-      // Check if patient has already submitted responses
+      // Check if patient has already submitted responses first
       const { data: existingResponse } = await supabase
         .from('patient_responses')
         .select('*')
@@ -176,7 +171,14 @@ const EnhancedPatientDashboard = () => {
         } else if (isTestPatient) {
           setCurrentStep(Step.CHAT);
         } else {
-          setCurrentStep(Step.CHAT);
+          setCurrentStep(Step.DATA_CONSENT); // Skip form for regular patients if they have responses
+        }
+      } else {
+        // No existing response, start appropriately
+        if (isTestPatient) {
+          setCurrentStep(Step.DATA_CONSENT);
+        } else {
+          setCurrentStep(Step.DATA_CONSENT); // Start with data consent, not form
         }
       }
 
