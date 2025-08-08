@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { CalendarIcon, Loader2, Users, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, parseISO, startOfDay, endOfDay, isToday, isTomorrow, isYesterday, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, addWeeks, addMonths, addYears, subWeeks, subMonths, subYears } from 'date-fns';
+import { format, parseISO, startOfDay, endOfDay, isToday, isTomorrow, isYesterday, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, addWeeks, addMonths, addYears, subWeeks, subMonths, subYears, eachDayOfInterval, eachMonthOfInterval, addDays } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
@@ -163,6 +163,132 @@ export const AppointmentsCalendar = () => {
     }
   };
 
+  const renderMonthView = () => {
+    return (
+      <Calendar
+        mode="single"
+        selected={selectedDate}
+        onSelect={setSelectedDate}
+        month={currentDate}
+        onMonthChange={setCurrentDate}
+        locale={es}
+        className={cn("rounded-md border p-3 pointer-events-auto")}
+        modifiers={{
+          hasAppointments: datesWithAppointments,
+        }}
+        modifiersClassNames={{
+          hasAppointments: "bg-primary text-primary-foreground font-bold hover:bg-primary/90",
+        }}
+      />
+    );
+  };
+
+  const renderWeekView = () => {
+    const start = startOfWeek(currentDate, { locale: es });
+    const end = endOfWeek(currentDate, { locale: es });
+    const weekDays = eachDayOfInterval({ start, end });
+
+    return (
+      <div className="space-y-2">
+        <div className="grid grid-cols-7 gap-2">
+          {weekDays.map((day) => {
+            const dayAppointments = getAppointmentsForDate(day);
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+            const hasAppointments = dayAppointments.length > 0;
+
+            return (
+              <div
+                key={day.toISOString()}
+                className={cn(
+                  "p-3 border rounded-lg cursor-pointer transition-colors",
+                  isSelected && "bg-primary text-primary-foreground",
+                  !isSelected && hasAppointments && "bg-accent border-primary",
+                  !isSelected && !hasAppointments && "hover:bg-muted"
+                )}
+                onClick={() => setSelectedDate(day)}
+              >
+                <div className="text-center">
+                  <p className="text-xs font-medium mb-1">
+                    {format(day, 'EEE', { locale: es })}
+                  </p>
+                  <p className="text-lg font-bold">
+                    {format(day, 'd')}
+                  </p>
+                  {hasAppointments && (
+                    <Badge variant="secondary" className="text-xs mt-1">
+                      {dayAppointments.length}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderYearView = () => {
+    const yearStart = startOfYear(currentDate);
+    const yearEnd = endOfYear(currentDate);
+    const months = eachMonthOfInterval({ start: yearStart, end: yearEnd });
+
+    return (
+      <div className="grid grid-cols-3 gap-4">
+        {months.map((month) => {
+          const monthAppointments = appointments.filter(appointment => {
+            const appointmentDate = parseISO(appointment.procedure_date);
+            return appointmentDate >= startOfMonth(month) && appointmentDate <= endOfMonth(month);
+          });
+
+          const isCurrentMonth = isSameDay(month, currentDate);
+
+          return (
+            <div
+              key={month.toISOString()}
+              className={cn(
+                "p-4 border rounded-lg cursor-pointer transition-colors",
+                isCurrentMonth && "bg-primary text-primary-foreground",
+                !isCurrentMonth && monthAppointments.length > 0 && "bg-accent border-primary",
+                !isCurrentMonth && monthAppointments.length === 0 && "hover:bg-muted"
+              )}
+              onClick={() => {
+                setCurrentDate(month);
+                setViewMode('month');
+              }}
+            >
+              <div className="text-center">
+                <p className="font-medium mb-2">
+                  {format(month, 'MMM', { locale: es })}
+                </p>
+                <p className="text-2xl font-bold mb-2">
+                  {format(month, 'yyyy')}
+                </p>
+                {monthAppointments.length > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {monthAppointments.length} citas
+                  </Badge>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderCalendarView = () => {
+    switch (viewMode) {
+      case 'week':
+        return renderWeekView();
+      case 'year':
+        return renderYearView();
+      case 'month':
+      default:
+        return renderMonthView();
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -288,21 +414,7 @@ export const AppointmentsCalendar = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              month={currentDate}
-              onMonthChange={setCurrentDate}
-              locale={es}
-              className={cn("rounded-md border p-3 pointer-events-auto")}
-              modifiers={{
-                hasAppointments: datesWithAppointments,
-              }}
-              modifiersClassNames={{
-                hasAppointments: "bg-primary text-primary-foreground font-bold hover:bg-primary/90",
-              }}
-            />
+            {renderCalendarView()}
           </CardContent>
         </Card>
 
