@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AuthGuard } from '@/components/AuthGuard';
 import { SystemPromptManager } from '@/components/SystemPromptManager';
 import { AppointmentsCalendar } from '@/components/AppointmentsCalendar';
+import PatientStatusManager from '@/components/PatientStatusManager';
 import * as XLSX from 'xlsx';
 
 interface PatientData {
@@ -146,8 +147,9 @@ const AdminPanel = () => {
           </div>
 
           <Tabs defaultValue="patients" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="patients">Gestión de Pacientes</TabsTrigger>
+              <TabsTrigger value="status">Estado de Pacientes</TabsTrigger>
               <TabsTrigger value="calendar">Calendario de Citas</TabsTrigger>
               <TabsTrigger value="system">Prompt del Sistema</TabsTrigger>
             </TabsList>
@@ -309,6 +311,10 @@ const AdminPanel = () => {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="status">
+              <PatientStatusManager userRole={userRole} />
             </TabsContent>
 
             <TabsContent value="calendar">

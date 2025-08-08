@@ -213,6 +213,7 @@ export type Database = {
           phone: string | null
           procedure: string | null
           procedure_date: string | null
+          status: string | null
           token: string
           updated_at: string | null
         }
@@ -226,6 +227,7 @@ export type Database = {
           phone?: string | null
           procedure?: string | null
           procedure_date?: string | null
+          status?: string | null
           token: string
           updated_at?: string | null
         }
@@ -239,6 +241,7 @@ export type Database = {
           phone?: string | null
           procedure?: string | null
           procedure_date?: string | null
+          status?: string | null
           token?: string
           updated_at?: string | null
         }
