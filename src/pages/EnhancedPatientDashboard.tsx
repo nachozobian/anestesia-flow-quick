@@ -243,9 +243,8 @@ const EnhancedPatientDashboard = () => {
   };
 
   const getStepProgress = () => {
-    const steps = isTestToken 
-      ? [Step.DATA_CONSENT, Step.CHAT, Step.RECOMMENDATIONS, Step.CONSENT, Step.COMPLETE]
-      : Object.values(Step);
+    // Use the same steps for all patients (no form step)
+    const steps = [Step.DATA_CONSENT, Step.CHAT, Step.RECOMMENDATIONS, Step.CONSENT, Step.COMPLETE];
     const currentIndex = steps.indexOf(currentStep);
     return ((currentIndex + 1) / steps.length) * 100;
   };
@@ -285,9 +284,8 @@ const EnhancedPatientDashboard = () => {
   };
 
   const isStepCompleted = (step: Step) => {
-    const steps = isTestToken 
-      ? [Step.DATA_CONSENT, Step.CHAT, Step.RECOMMENDATIONS, Step.CONSENT, Step.COMPLETE]
-      : Object.values(Step);
+    // Use the same steps for all patients (no form step)
+    const steps = [Step.DATA_CONSENT, Step.CHAT, Step.RECOMMENDATIONS, Step.CONSENT, Step.COMPLETE];
     const stepIndex = steps.indexOf(step);
     const currentIndex = steps.indexOf(currentStep);
     return stepIndex < currentIndex || (step === currentStep && currentStep === Step.COMPLETE);
@@ -401,10 +399,7 @@ const EnhancedPatientDashboard = () => {
               
               {/* Step indicators */}
               <div className="flex justify-between">
-                {(isTestToken 
-                  ? [Step.DATA_CONSENT, Step.CHAT, Step.RECOMMENDATIONS, Step.CONSENT, Step.COMPLETE]
-                  : Object.values(Step)
-                ).map((step) => (
+                {[Step.DATA_CONSENT, Step.CHAT, Step.RECOMMENDATIONS, Step.CONSENT, Step.COMPLETE].map((step) => (
                   <div key={step} className="flex flex-col items-center space-y-1">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                       isStepCompleted(step) 
