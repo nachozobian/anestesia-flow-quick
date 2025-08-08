@@ -295,16 +295,12 @@ export const AppointmentsCalendar = () => {
               month={currentDate}
               onMonthChange={setCurrentDate}
               locale={es}
-              className="rounded-md border"
+              className={cn("rounded-md border p-3 pointer-events-auto")}
               modifiers={{
                 hasAppointments: datesWithAppointments,
               }}
-              modifiersStyles={{
-                hasAppointments: {
-                  backgroundColor: 'hsl(var(--primary))',
-                  color: 'hsl(var(--primary-foreground))',
-                  fontWeight: 'bold',
-                },
+              modifiersClassNames={{
+                hasAppointments: "bg-primary text-primary-foreground font-bold hover:bg-primary/90",
               }}
             />
           </CardContent>
