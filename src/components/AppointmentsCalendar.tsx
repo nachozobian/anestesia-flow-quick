@@ -2,10 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { Calendar, Loader2, Users, Clock } from 'lucide-react';
-import { format, parseISO, startOfDay, endOfDay, isToday, isTomorrow, isYesterday } from 'date-fns';
+import { CalendarIcon, Loader2, Users, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, parseISO, startOfDay, endOfDay, isToday, isTomorrow, isYesterday, isSameDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, addWeeks, addMonths, addYears, subWeeks, subMonths, subYears } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 interface Patient {
   id: string;
@@ -17,9 +20,14 @@ interface Patient {
   created_at: string;
 }
 
+type ViewMode = 'month' | 'week' | 'year';
+
 export const AppointmentsCalendar = () => {
   const [appointments, setAppointments] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [viewMode, setViewMode] = useState<ViewMode>('month');
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [stats, setStats] = useState({
     today: 0,
     tomorrow: 0,
@@ -123,6 +131,38 @@ export const AppointmentsCalendar = () => {
     return groups;
   };
 
+  const getAppointmentsForDate = (date: Date) => {
+    return appointments.filter(appointment => 
+      isSameDay(parseISO(appointment.procedure_date), date)
+    );
+  };
+
+  const getDatesWithAppointments = () => {
+    return appointments.map(appointment => parseISO(appointment.procedure_date.split('T')[0]));
+  };
+
+  const navigateDate = (direction: 'prev' | 'next') => {
+    if (viewMode === 'week') {
+      setCurrentDate(direction === 'next' ? addWeeks(currentDate, 1) : subWeeks(currentDate, 1));
+    } else if (viewMode === 'month') {
+      setCurrentDate(direction === 'next' ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
+    } else if (viewMode === 'year') {
+      setCurrentDate(direction === 'next' ? addYears(currentDate, 1) : subYears(currentDate, 1));
+    }
+  };
+
+  const getDateRangeLabel = () => {
+    if (viewMode === 'week') {
+      const start = startOfWeek(currentDate, { locale: es });
+      const end = endOfWeek(currentDate, { locale: es });
+      return `${format(start, 'dd MMM', { locale: es })} - ${format(end, 'dd MMM yyyy', { locale: es })}`;
+    } else if (viewMode === 'month') {
+      return format(currentDate, 'MMMM yyyy', { locale: es });
+    } else {
+      return format(currentDate, 'yyyy', { locale: es });
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -133,8 +173,8 @@ export const AppointmentsCalendar = () => {
     );
   }
 
-  const groupedAppointments = groupAppointmentsByDate(appointments);
-  const sortedDates = Object.keys(groupedAppointments).sort();
+  const selectedDateAppointments = selectedDate ? getAppointmentsForDate(selectedDate) : [];
+  const datesWithAppointments = getDatesWithAppointments();
 
   return (
     <div className="space-y-6">
@@ -155,7 +195,7 @@ export const AppointmentsCalendar = () => {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-blue-500" />
+              <CalendarIcon className="h-4 w-4 text-blue-500" />
               <div>
                 <p className="text-2xl font-bold">{stats.tomorrow}</p>
                 <p className="text-xs text-muted-foreground">Mañana</p>
@@ -167,7 +207,7 @@ export const AppointmentsCalendar = () => {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-green-500" />
+              <CalendarIcon className="h-4 w-4 text-green-500" />
               <div>
                 <p className="text-2xl font-bold">{stats.thisWeek}</p>
                 <p className="text-xs text-muted-foreground">Esta semana</p>
@@ -189,73 +229,137 @@ export const AppointmentsCalendar = () => {
         </Card>
       </div>
 
-      {/* Appointments List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5" />
-            Calendario de Citas
-          </CardTitle>
-          <CardDescription>
-            Lista de todas las citas programadas ordenadas por fecha
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {sortedDates.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No hay citas programadas</p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Calendar View */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5" />
+                Calendario de Citas
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={viewMode === 'week' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('week')}
+                >
+                  Semana
+                </Button>
+                <Button
+                  variant={viewMode === 'month' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('month')}
+                >
+                  Mes
+                </Button>
+                <Button
+                  variant={viewMode === 'year' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('year')}
+                >
+                  Año
+                </Button>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-6">
-              {sortedDates.map(date => {
-                const dateAppointments = groupedAppointments[date];
-                const { label, variant } = getDateLabel(date);
-                
-                return (
-                  <div key={date} className="space-y-3">
-                    <div className="flex items-center gap-3 border-b pb-2">
-                      <Badge variant={variant}>{label}</Badge>
-                      <span className="text-sm font-medium">
-                        {format(parseISO(date), 'EEEE, dd MMMM yyyy', { locale: es })}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {dateAppointments.length} cita{dateAppointments.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    
-                    <div className="grid gap-3">
-                      {dateAppointments.map(appointment => (
-                        <Card key={appointment.id} className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                              <p className="font-medium">{appointment.name}</p>
-                              <p className="text-sm text-muted-foreground">{appointment.email}</p>
-                              {appointment.phone && (
-                                <p className="text-sm text-muted-foreground">{appointment.phone}</p>
-                              )}
-                            </div>
-                            <div className="text-right space-y-1">
-                              {appointment.procedure && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {appointment.procedure}
-                                </Badge>
-                              )}
-                              <p className="text-xs text-muted-foreground">
-                                {format(parseISO(appointment.procedure_date), 'HH:mm', { locale: es })}
-                              </p>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex items-center justify-between">
+              <CardDescription>
+                Selecciona una fecha para ver las citas programadas
+              </CardDescription>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateDate('prev')}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium min-w-[150px] text-center">
+                  {getDateRangeLabel()}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigateDate('next')}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={setSelectedDate}
+              month={currentDate}
+              onMonthChange={setCurrentDate}
+              locale={es}
+              className="rounded-md border"
+              modifiers={{
+                hasAppointments: datesWithAppointments,
+              }}
+              modifiersStyles={{
+                hasAppointments: {
+                  backgroundColor: 'hsl(var(--primary))',
+                  color: 'hsl(var(--primary-foreground))',
+                  fontWeight: 'bold',
+                },
+              }}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Selected Date Appointments */}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {selectedDate ? (
+                <>Citas para {format(selectedDate, 'EEEE, dd MMMM yyyy', { locale: es })}</>
+              ) : (
+                'Selecciona una fecha'
+              )}
+            </CardTitle>
+            <CardDescription>
+              {selectedDateAppointments.length} cita{selectedDateAppointments.length !== 1 ? 's' : ''} programada{selectedDateAppointments.length !== 1 ? 's' : ''}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {selectedDateAppointments.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No hay citas programadas para esta fecha</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {selectedDateAppointments.map(appointment => (
+                  <Card key={appointment.id} className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <p className="font-medium">{appointment.name}</p>
+                        <p className="text-sm text-muted-foreground">{appointment.email}</p>
+                        {appointment.phone && (
+                          <p className="text-sm text-muted-foreground">{appointment.phone}</p>
+                        )}
+                      </div>
+                      <div className="text-right space-y-1">
+                        {appointment.procedure && (
+                          <Badge variant="secondary" className="text-xs">
+                            {appointment.procedure}
+                          </Badge>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          {format(parseISO(appointment.procedure_date), 'HH:mm', { locale: es })}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
