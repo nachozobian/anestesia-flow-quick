@@ -29,7 +29,11 @@ export const SystemPromptManager = ({ userRole }: SystemPromptManagerProps) => {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
+  console.log('SystemPromptManager - userRole:', userRole);
+  console.log('SystemPromptManager - typeof userRole:', typeof userRole);
+  
   const isOwner = userRole === 'Owner';
+  console.log('SystemPromptManager - isOwner:', isOwner);
 
   useEffect(() => {
     fetchSystemPrompt();

@@ -36,11 +36,14 @@ const AdminPanel = () => {
     const getCurrentUserRole = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        console.log('Current user:', user.email);
         const { data } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user.id)
           .single();
+        console.log('Role data from DB:', data);
+        console.log('Role value:', data?.role);
         setUserRole(data?.role || null);
       }
     };
