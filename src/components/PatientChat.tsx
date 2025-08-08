@@ -107,6 +107,14 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
     setInput('');
 
     try {
+      // Update patient status to "En progreso" if this is their first message
+      if (messages.length <= 1) { // Only AI greeting exists
+        await supabase
+          .from('patients')
+          .update({ status: 'En progreso' })
+          .eq('id', patientId);
+      }
+
       // Save user message
       const { error: userError } = await supabase
         .from('patient_conversations')

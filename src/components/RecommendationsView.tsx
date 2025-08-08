@@ -112,6 +112,21 @@ const RecommendationsView = ({ patientId, onContinue }: RecommendationsViewProps
         // Reload recommendations from database
         await loadRecommendations();
         
+        // Check if patient has already signed consent, if so update status to "Completado"
+        const { data: consent } = await supabase
+          .from('informed_consents')
+          .select('accepted')
+          .eq('patient_id', patientId)
+          .eq('accepted', true)
+          .limit(1);
+
+        if (consent && consent.length > 0) {
+          await supabase
+            .from('patients')
+            .update({ status: 'Completado' })
+            .eq('id', patientId);
+        }
+        
         toast({
           title: "Recomendaciones generadas",
           description: "Se han generado sus recomendaciones personalizadas.",

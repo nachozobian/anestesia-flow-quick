@@ -276,6 +276,20 @@ Fecha: ${new Date().toLocaleDateString()}
         throw error;
       }
 
+      // Check if recommendations exist, if so, update patient status to "Completado"
+      const { data: recommendations } = await supabase
+        .from('patient_recommendations')
+        .select('id')
+        .eq('patient_id', patientId)
+        .limit(1);
+
+      if (recommendations && recommendations.length > 0) {
+        await supabase
+          .from('patients')
+          .update({ status: 'Completado' })
+          .eq('id', patientId);
+      }
+
       toast({
         title: "Consentimiento aceptado",
         description: "Su consentimiento informado ha sido registrado exitosamente.",
