@@ -27,12 +27,9 @@ const DNIVerification = () => {
 
     setLoading(true);
     try {
-      // Check if patient exists with this DNI
-      const { data: patient, error } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('dni', dni.trim())
-        .maybeSingle();
+      // Use secure function to verify DNI and get token
+      const { data, error } = await supabase
+        .rpc('verify_dni_and_get_token', { patient_dni: dni.trim() });
 
       if (error) {
         console.error('Error checking DNI:', error);
@@ -44,7 +41,7 @@ const DNIVerification = () => {
         return;
       }
 
-      if (!patient) {
+      if (!data || data.length === 0) {
         toast({
           title: "DNI no encontrado",
           description: "No se encontró ningún paciente con este DNI. Verifique el número ingresado.",
@@ -54,7 +51,7 @@ const DNIVerification = () => {
       }
 
       // Redirect to patient dashboard with token
-      navigate(`/patient/${patient.token}`);
+      navigate(`/patient/${data[0].token}`);
       
     } catch (error) {
       console.error('Unexpected error:', error);
