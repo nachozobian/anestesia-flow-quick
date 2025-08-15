@@ -365,6 +365,31 @@ export type Database = {
           title: string
         }[]
       }
+      get_patient_responses_by_token: {
+        Args: { patient_token: string }
+        Returns: {
+          additional_concerns: string
+          alcohol: boolean
+          allergies: string
+          created_at: string
+          current_medications: string
+          diet: string
+          emergency_contact_name: string
+          emergency_contact_phone: string
+          emergency_contact_relationship: string
+          exercise: string
+          family_history: string
+          has_allergies: boolean
+          id: string
+          medical_history: string
+          patient_id: string
+          previous_surgeries: string
+          sleep_hours: number
+          smoking: boolean
+          stress_level: number
+          updated_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
