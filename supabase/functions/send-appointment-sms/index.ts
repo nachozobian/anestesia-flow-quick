@@ -46,15 +46,31 @@ serve(async (req) => {
     const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
     const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
 
-    console.log('Twilio credentials check:', {
-      hasAccountSid: !!accountSid,
-      hasTwilioPhoneNumber: !!twilioPhoneNumber,
-      hasAuthToken: !!authToken,
-      accountSidStart: accountSid ? accountSid.substring(0, 5) + '...' : 'missing'
-    });
+    // Debug all environment variables related to Twilio
+    console.log('=== DEBUGGING TWILIO CREDENTIALS ===');
+    console.log('TWILIO_ACCOUNT_SID exists:', !!accountSid);
+    console.log('TWILIO_AUTH_TOKEN exists:', !!authToken);
+    console.log('TWILIO_PHONE_NUMBER exists:', !!twilioPhoneNumber);
+    
+    if (accountSid) {
+      console.log('AccountSID starts with:', accountSid.substring(0, 5));
+      console.log('AccountSID length:', accountSid.length);
+    }
+    if (authToken) {
+      console.log('AuthToken starts with:', authToken.substring(0, 5));
+      console.log('AuthToken length:', authToken.length);
+    }
+    if (twilioPhoneNumber) {
+      console.log('Phone number:', twilioPhoneNumber);
+    }
+    console.log('=== END DEBUG ===');
 
     if (!accountSid || !authToken || !twilioPhoneNumber) {
-      console.error('Missing Twilio credentials');
+      console.error('Missing Twilio credentials - detailed check:', {
+        accountSid: accountSid || 'MISSING',
+        authToken: authToken || 'MISSING', 
+        twilioPhoneNumber: twilioPhoneNumber || 'MISSING'
+      });
       return new Response(
         JSON.stringify({ error: 'Configuración de Twilio incompleta' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
