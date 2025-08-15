@@ -60,7 +60,7 @@ const RecommendationsView = ({ patientId, onContinue }: RecommendationsViewProps
   const generateRecommendations = async () => {
     setGenerating(true);
     try {
-      // Get patient data and conversation history
+      // Get patient data and conversation history - Note: This requires authenticated admin access
       const [patientResult, responsesResult, conversationResult] = await Promise.all([
         supabase
           .from('patients')

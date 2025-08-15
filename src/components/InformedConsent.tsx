@@ -59,7 +59,7 @@ const InformedConsent = ({ patientId, onComplete }: InformedConsentProps) => {
 
   const createConsentDocument = async () => {
     try {
-      // Get patient information for personalized consent
+      // Get patient information for personalized consent - Note: This requires authenticated admin access
       const { data: patient, error: patientError } = await supabase
         .from('patients')
         .select('*')
@@ -320,6 +320,8 @@ Fecha: ${new Date().toLocaleDateString()}
         .limit(1);
 
       if (recommendations && recommendations.length > 0) {
+        // Update patient status using secure function - Note: This requires patient token
+        // This will need to be modified based on available patient token
         await supabase
           .from('patients')
           .update({ status: 'Completado' })

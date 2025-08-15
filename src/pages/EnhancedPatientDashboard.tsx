@@ -111,12 +111,11 @@ const EnhancedPatientDashboard = () => {
     if (!token) return;
 
     try {
-      // Fetch patient data
-      const { data: patientData, error: patientError } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('token', token)
-        .single();
+      // Fetch patient data using secure function
+      const { data: patientResult, error: patientError } = await supabase
+        .rpc('get_patient_by_token', { patient_token: token });
+      
+      const patientData = patientResult?.[0];
 
       if (patientError || !patientData) {
         console.error('Patient not found:', patientError);
