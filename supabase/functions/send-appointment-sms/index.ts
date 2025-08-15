@@ -19,6 +19,7 @@ serve(async (req) => {
   }
 
   try {
+    // Force cache refresh - v2
     const { patientId, appointmentDate, procedure }: AppointmentData = await req.json();
 
     // Initialize Supabase client
