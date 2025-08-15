@@ -87,17 +87,15 @@ serve(async (req) => {
       minute: '2-digit'
     });
 
-    // Create SMS message
-    const message = `Hola ${patient.name}, 
+    // Create SMS message (shortened for trial account)
+    const message = `Hola ${patient.name},
 
-Su cita médica ha sido programada:
+Su cita médica:
+📅 ${formattedDate}
+🏥 ${patient.procedure || procedure}
 
-📅 Fecha: ${formattedDate}
-🏥 Procedimiento: ${patient.procedure || procedure}
-
-Por favor, llegue 30 minutos antes de la hora programada.
-
-Si necesita reprogramar, contacte con nosotros.
+Llegue 30 min antes.
+Para reprogramar, contacte con nosotros.
 
 Clínica Médica`;
 
