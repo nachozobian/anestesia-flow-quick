@@ -89,15 +89,9 @@ serve(async (req) => {
     });
 
     // Create SMS message (shortened for trial account)
-    const message = `Hola ${patient.name},
-
-Su cita médica:
-📅 ${formattedDate}
-🏥 ${patient.procedure || procedure}
-
-Llegue 30 min antes.
-Para reprogramar, contacte con nosotros.
-
+    const message = `Cita: ${formattedDate}
+Procedimiento: ${patient.procedure || procedure}
+Llegue 30min antes.
 Clínica Médica`;
 
     // Send SMS via Twilio
