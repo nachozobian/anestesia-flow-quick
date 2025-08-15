@@ -276,6 +276,42 @@ Fecha: ${new Date().toLocaleDateString()}
         throw error;
       }
 
+      // Send SMS with appointment details after consent is signed
+      try {
+        // Generate appointment date (next available slot - for demo, adding 7 days)
+        const appointmentDate = new Date();
+        appointmentDate.setDate(appointmentDate.getDate() + 7);
+        appointmentDate.setHours(9, 0, 0, 0); // 9 AM appointment
+        
+        const { data: smsData, error: smsError } = await supabase.functions.invoke('send-appointment-sms', {
+          body: {
+            patientId,
+            appointmentDate: appointmentDate.toISOString(),
+            procedure: 'Consulta Pre-operatoria'
+          }
+        });
+
+        if (smsError) {
+          console.error('Error sending appointment SMS:', smsError);
+          toast({
+            title: "Consentimiento aceptado",
+            description: "Consentimiento registrado. Error enviando SMS de cita - verifique las credenciales de Twilio.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "¡Proceso Completado!",
+            description: `Consentimiento firmado y SMS enviado con cita para el ${smsData.appointmentDate}`,
+          });
+        }
+      } catch (smsError) {
+        console.error('SMS Error:', smsError);
+        toast({
+          title: "Consentimiento aceptado",
+          description: "Consentimiento registrado exitosamente. Error con el SMS de cita.",
+        });
+      }
+
       // Check if recommendations exist, if so, update patient status to "Completado"
       const { data: recommendations } = await supabase
         .from('patient_recommendations')
@@ -289,11 +325,6 @@ Fecha: ${new Date().toLocaleDateString()}
           .update({ status: 'Completado' })
           .eq('id', patientId);
       }
-
-      toast({
-        title: "Consentimiento aceptado",
-        description: "Su consentimiento informado ha sido registrado exitosamente.",
-      });
 
       onComplete();
 

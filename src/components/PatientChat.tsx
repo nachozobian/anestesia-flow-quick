@@ -206,49 +206,8 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
     }
   };
 
-  const handleCompleteConsultation = async () => {
-    try {
-      setLoading(true);
-      
-      // Generate appointment date (next available slot - for demo, adding 7 days)
-      const appointmentDate = new Date();
-      appointmentDate.setDate(appointmentDate.getDate() + 7);
-      appointmentDate.setHours(9, 0, 0, 0); // 9 AM appointment
-      
-      // Send SMS with appointment details
-      const { data, error } = await supabase.functions.invoke('send-appointment-sms', {
-        body: {
-          patientId,
-          appointmentDate: appointmentDate.toISOString(),
-          procedure: 'Consulta Pre-operatoria'
-        }
-      });
-
-      if (error) {
-        console.error('Error sending appointment SMS:', error);
-        toast({
-          title: "Error",
-          description: "No se pudo enviar el SMS con la cita. Consulta completada exitosamente.",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "¡Consulta Completada!",
-          description: `Se ha enviado un SMS con los detalles de su cita para el ${data.appointmentDate}`,
-        });
-      }
-
-      onComplete();
-    } catch (error) {
-      console.error('Error completing consultation:', error);
-      toast({
-        title: "Error",
-        description: "Hubo un problema al finalizar la consulta.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleCompleteConsultation = () => {
+    onComplete();
   };
 
   if (initialLoading) {
