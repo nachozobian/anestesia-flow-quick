@@ -339,13 +339,22 @@ Fecha: ${new Date().toLocaleDateString()}
 
         // Send SMS notification after completing evaluation
         try {
+          console.log('Starting SMS send process for patient token:', patientId);
+          
           // Get patient data for SMS
           const { data: patientResult } = await supabase
             .rpc('get_patient_by_token', { patient_token: patientId });
           
           const patientData = patientResult?.[0];
+          console.log('Patient data for SMS:', patientData);
           
           if (patientData) {
+            console.log('Invoking SMS function with data:', {
+              patientId: patientData.id,
+              appointmentDate: patientData.procedure_date,
+              procedure: patientData.procedure
+            });
+            
             const { error: smsError } = await supabase.functions.invoke('send-appointment-sms', {
               body: {
                 patientId: patientData.id,
@@ -356,7 +365,11 @@ Fecha: ${new Date().toLocaleDateString()}
 
             if (smsError) {
               console.error('Error sending SMS:', smsError);
+            } else {
+              console.log('SMS sent successfully');
             }
+          } else {
+            console.log('No patient data found for SMS');
           }
         } catch (smsError) {
           console.error('Error sending SMS:', smsError);

@@ -148,6 +148,48 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
     }
   };
 
+  const sendSMSManually = async (patient: Patient) => {
+    if (!canEditStatus) {
+      toast({
+        title: "Sin permisos",
+        description: "No tienes permisos para enviar SMS",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error: smsError } = await supabase.functions.invoke('send-appointment-sms', {
+        body: {
+          patientId: patient.id,
+          appointmentDate: patient.procedure_date,
+          procedure: patient.procedure
+        }
+      });
+
+      if (smsError) {
+        console.error('Error sending SMS:', smsError);
+        toast({
+          title: "Error",
+          description: "Error al enviar SMS",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "SMS Enviado",
+          description: `SMS enviado exitosamente a ${patient.name}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error sending SMS:', error);
+      toast({
+        title: "Error",
+        description: "Error al enviar SMS",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'Pendientes':
@@ -380,6 +422,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                     <TableHead>Fecha Cirugía</TableHead>
                     <TableHead>Estado</TableHead>
                     {canEditStatus && <TableHead>Acciones</TableHead>}
+                    {canEditStatus && <TableHead>SMS</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -429,6 +472,18 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                               <SelectItem value="Completado">Completado</SelectItem>
                             </SelectContent>
                           </Select>
+                        </TableCell>
+                      )}
+                      {canEditStatus && (
+                        <TableCell>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => sendSMSManually(patient)}
+                            disabled={!patient.procedure_date}
+                          >
+                            Enviar SMS
+                          </Button>
                         </TableCell>
                       )}
                     </TableRow>
