@@ -107,6 +107,15 @@ Clínica Médica`;
 
     const twilioData = await twilioResponse.json();
 
+    console.log('Twilio request details:', {
+      to: cleanPhoneNumber,
+      from: twilioPhoneNumber,
+      messageLength: message.length
+    });
+    
+    console.log('Twilio response status:', twilioResponse.status);
+    console.log('Twilio response data:', JSON.stringify(twilioData, null, 2));
+
     if (!twilioResponse.ok) {
       console.error('Twilio error:', twilioData);
       return new Response(
@@ -114,6 +123,9 @@ Clínica Médica`;
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('SMS sent successfully - SID:', twilioData.sid);
+    console.log('SMS status:', twilioData.status);
 
     // Update patient status to reflect appointment has been scheduled
     const { error: updateError } = await supabase
