@@ -778,9 +778,9 @@ const EnhancedPatientDashboard = () => {
           />
         )}
 
-        {currentStep === Step.CONSENT && patient && (
+        {currentStep === Step.CONSENT && patient && token && (
           <InformedConsent 
-            patientId={patient.id} 
+            patientId={token} 
             onComplete={() => setCurrentStep(Step.COMPLETE)}
           />
         )}
