@@ -82,6 +82,9 @@ Clínica Médica`;
     const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
     const auth = btoa(`${accountSid}:${authToken}`);
 
+    // Remove spaces from phone number to match Twilio verification format
+    const cleanPhoneNumber = patient.phone.replace(/\s+/g, '');
+
     const twilioResponse = await fetch(twilioUrl, {
       method: 'POST',
       headers: {
@@ -89,7 +92,7 @@ Clínica Médica`;
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        To: patient.phone,
+        To: cleanPhoneNumber,
         From: twilioPhoneNumber,
         Body: message,
       }),
