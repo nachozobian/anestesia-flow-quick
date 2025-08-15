@@ -48,30 +48,18 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
   };
 
   const loadConversation = async () => {
-    if (!patientId) {
-      console.log('No patientId provided');
-      return;
-    }
-    
-    console.log('Loading conversation for token:', patientId);
+    if (!patientId) return;
     
     try {
       // Get patient token first
-      const { data: patientResult, error: patientError } = await supabase
+      const { data: patientResult } = await supabase
         .rpc('get_patient_by_token', { patient_token: patientId });
       
-      console.log('Patient result:', patientResult, 'Error:', patientError);
-      
-      if (!patientResult || patientResult.length === 0) {
-        console.log('No patient found for token');
-        return;
-      }
+      if (!patientResult || patientResult.length === 0) return;
       
       // Load conversation using secure function
       const { data: conversationData, error } = await supabase
         .rpc('get_patient_conversations_by_token', { patient_token: patientId });
-
-      console.log('Conversation data:', conversationData, 'Error:', error);
 
       if (error) {
         console.error('Error loading conversation:', error);
@@ -85,7 +73,6 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
         created_at: msg.created_at
       }));
 
-      console.log('Formatted messages:', formattedMessages);
       setMessages(formattedMessages);
     } catch (error) {
       console.error('Error loading conversation:', error);

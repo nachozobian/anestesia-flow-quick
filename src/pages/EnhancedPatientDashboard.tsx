@@ -764,16 +764,16 @@ const EnhancedPatientDashboard = () => {
           </Card>
         )}
 
-        {currentStep === Step.CHAT && patient && (
+        {currentStep === Step.CHAT && patient && token && (
           <PatientChat 
-            patientId={patient.id} 
+            patientId={token} 
             onComplete={() => setCurrentStep(Step.RECOMMENDATIONS)}
           />
         )}
 
-        {currentStep === Step.RECOMMENDATIONS && patient && (
+        {currentStep === Step.RECOMMENDATIONS && patient && token && (
           <RecommendationsView 
-            patientId={patient.id} 
+            patientId={token} 
             onContinue={() => setCurrentStep(Step.CONSENT)}
           />
         )}
