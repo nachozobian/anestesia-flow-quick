@@ -30,26 +30,7 @@ const AdminPanel = () => {
   const [patients, setPatients] = useState<PatientData[]>([]);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-  const [userRole, setUserRole] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const getCurrentUserRole = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        console.log('Current user:', user.email);
-        const { data } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .single();
-        console.log('Role data from DB:', data);
-        console.log('Role value:', data?.role);
-        setUserRole(data?.role || null);
-      }
-    };
-    getCurrentUserRole();
-  }, []);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -127,7 +108,8 @@ const AdminPanel = () => {
 
   return (
     <AuthGuard requiredRoles={['Owner', 'Nurse']}>
-      <div className="min-h-screen bg-background">
+      {(userRole) => (
+        <div className="min-h-screen bg-background">
         <div className="container mx-auto p-6">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
@@ -327,6 +309,7 @@ const AdminPanel = () => {
           </Tabs>
         </div>
       </div>
+      )}
     </AuthGuard>
   );
 };

@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
 interface AuthGuardProps {
-  children: React.ReactNode;
+  children: (userRole: string | null) => React.ReactNode;
   requiredRoles?: string[];
 }
 
@@ -204,7 +204,7 @@ export const AuthGuard = ({ children, requiredRoles = [] }: AuthGuardProps) => {
         </div>
       </header>
       <main className="container py-6">
-        {children}
+        {children(userRole)}
       </main>
     </div>
   );
