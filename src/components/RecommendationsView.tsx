@@ -32,15 +32,14 @@ const RecommendationsView = ({ patientId, onContinue }: RecommendationsViewProps
 
   const loadRecommendations = async () => {
     try {
+      // Use secure function to get recommendations (patientId is now the token)
       const { data, error } = await supabase
-        .from('patient_recommendations')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('priority', { ascending: false })
-        .order('created_at', { ascending: false });
+        .rpc('get_patient_recommendations_by_token', { patient_token: patientId });
 
       if (error) {
         console.error('Error loading recommendations:', error);
+        // If we can't load recommendations, generate them
+        generateRecommendations();
         return;
       }
 
@@ -52,6 +51,8 @@ const RecommendationsView = ({ patientId, onContinue }: RecommendationsViewProps
       }
     } catch (error) {
       console.error('Error loading recommendations:', error);
+      // If there's an error, try to generate recommendations
+      generateRecommendations();
     } finally {
       setLoading(false);
     }
@@ -60,27 +61,18 @@ const RecommendationsView = ({ patientId, onContinue }: RecommendationsViewProps
   const generateRecommendations = async () => {
     setGenerating(true);
     try {
-      // Get patient data and conversation history - Note: This requires authenticated admin access
+      // patientId is now the token, so we can use it directly
+      const token = patientId;
+
+      // Get patient data, responses, and conversation using secure functions
       const [patientResult, responsesResult, conversationResult] = await Promise.all([
-        supabase
-          .from('patients')
-          .select('*')
-          .eq('id', patientId)
-          .maybeSingle(),
-        supabase
-          .from('patient_responses')
-          .select('*')
-          .eq('patient_id', patientId)
-          .maybeSingle(),
-        supabase
-          .from('patient_conversations')
-          .select('*')
-          .eq('patient_id', patientId)
-          .order('created_at', { ascending: true })
+        supabase.rpc('get_patient_by_token', { patient_token: token }),
+        supabase.rpc('get_patient_responses_by_token', { patient_token: token }),
+        supabase.rpc('get_patient_conversations_by_token', { patient_token: token })
       ]);
 
-      const patient = patientResult.data;
-      const responses = responsesResult.data;
+      const patient = patientResult.data?.[0];
+      const responses = responsesResult.data?.[0];
       const conversation = conversationResult.data || [];
 
       if (!patient) {
@@ -88,7 +80,7 @@ const RecommendationsView = ({ patientId, onContinue }: RecommendationsViewProps
       }
 
       // Create conversation history for context
-      const conversationHistory = conversation.map(msg => ({
+      const conversationHistory = conversation.map((msg: any) => ({
         role: msg.role,
         content: msg.content
       }));
@@ -112,19 +104,17 @@ const RecommendationsView = ({ patientId, onContinue }: RecommendationsViewProps
         // Reload recommendations from database
         await loadRecommendations();
         
-        // Check if patient has already signed consent, if so update status to "Completado"
+        // Check if patient has already signed consent using secure function
         const { data: consent } = await supabase
-          .from('informed_consents')
-          .select('accepted')
-          .eq('patient_id', patientId)
-          .eq('accepted', true)
-          .limit(1);
+          .rpc('get_patient_consents_by_token', { patient_token: token });
 
-        if (consent && consent.length > 0) {
-          await supabase
-            .from('patients')
-            .update({ status: 'Completado' })
-            .eq('id', patientId);
+        const hasAcceptedConsent = consent && consent.some((c: any) => c.accepted === true);
+
+        if (hasAcceptedConsent) {
+          await supabase.rpc('update_patient_by_token', {
+            patient_token: token,
+            new_status: 'Completado'
+          });
         }
         
         toast({
