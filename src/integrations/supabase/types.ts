@@ -301,6 +301,23 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_patient_by_token: {
+        Args: { patient_token: string }
+        Returns: {
+          birth_date: string
+          created_at: string
+          dni: string
+          email: string
+          id: string
+          name: string
+          phone: string
+          procedure: string
+          procedure_date: string
+          status: string
+          token: string
+          updated_at: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -311,6 +328,14 @@ export type Database = {
       setup_admin_users: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      update_patient_by_token: {
+        Args: {
+          new_procedure_date?: string
+          new_status?: string
+          patient_token: string
+        }
+        Returns: boolean
       }
     }
     Enums: {
