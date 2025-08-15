@@ -337,6 +337,31 @@ Fecha: ${new Date().toLocaleDateString()}
           new_status: 'Completado'
         });
 
+        // Send SMS notification after completing evaluation
+        try {
+          // Get patient data for SMS
+          const { data: patientResult } = await supabase
+            .rpc('get_patient_by_token', { patient_token: patientId });
+          
+          const patientData = patientResult?.[0];
+          
+          if (patientData) {
+            const { error: smsError } = await supabase.functions.invoke('send-appointment-sms', {
+              body: {
+                patientId: patientData.id,
+                appointmentDate: patientData.procedure_date,
+                procedure: patientData.procedure
+              }
+            });
+
+            if (smsError) {
+              console.error('Error sending SMS:', smsError);
+            }
+          }
+        } catch (smsError) {
+          console.error('Error sending SMS:', smsError);
+        }
+
         onComplete();
         return;
       }
@@ -364,6 +389,31 @@ Fecha: ${new Date().toLocaleDateString()}
         patient_token: patientId,
         new_status: 'Completado'
       });
+
+      // Send SMS notification after completing evaluation
+      try {
+        // Get patient data for SMS
+        const { data: patientResult } = await supabase
+          .rpc('get_patient_by_token', { patient_token: patientId });
+        
+        const patientData = patientResult?.[0];
+        
+        if (patientData) {
+          const { error: smsError } = await supabase.functions.invoke('send-appointment-sms', {
+            body: {
+              patientId: patientData.id,
+              appointmentDate: patientData.procedure_date,
+              procedure: patientData.procedure
+            }
+          });
+
+          if (smsError) {
+            console.error('Error sending SMS:', smsError);
+          }
+        }
+      } catch (smsError) {
+        console.error('Error sending SMS:', smsError);
+      }
 
       onComplete();
 
