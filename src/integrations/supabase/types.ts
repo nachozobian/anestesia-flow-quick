@@ -297,6 +297,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_conversation_message_by_token: {
+        Args: {
+          message_content: string
+          message_role: string
+          patient_token: string
+        }
+        Returns: string
+      }
       assign_admin_roles: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -318,6 +326,45 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_patient_consents_by_token: {
+        Args: { patient_token: string }
+        Returns: {
+          accepted: boolean
+          accepted_at: string
+          consent_type: string
+          content: string
+          created_at: string
+          id: string
+          patient_id: string
+          signature_data: string
+        }[]
+      }
+      get_patient_conversations_by_token: {
+        Args: { patient_token: string }
+        Returns: {
+          content: string
+          created_at: string
+          id: string
+          patient_id: string
+          role: string
+        }[]
+      }
+      get_patient_id_from_token: {
+        Args: { patient_token: string }
+        Returns: string
+      }
+      get_patient_recommendations_by_token: {
+        Args: { patient_token: string }
+        Returns: {
+          category: string
+          created_at: string
+          description: string
+          id: string
+          patient_id: string
+          priority: string
+          title: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -329,12 +376,25 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      update_consent_by_token: {
+        Args: {
+          consent_id: string
+          is_accepted: boolean
+          patient_token: string
+          signature_data_param?: string
+        }
+        Returns: boolean
+      }
       update_patient_by_token: {
         Args: {
           new_procedure_date?: string
           new_status?: string
           patient_token: string
         }
+        Returns: boolean
+      }
+      verify_patient_token_access: {
+        Args: { patient_token: string; target_patient_id: string }
         Returns: boolean
       }
     }

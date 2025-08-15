@@ -48,19 +48,32 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
   };
 
   const loadConversation = async () => {
+    if (!patientId) return;
+    
     try {
-      const { data, error } = await supabase
-        .from('patient_conversations')
-        .select('*')
-        .eq('patient_id', patientId)
-        .order('created_at', { ascending: true });
+      // Get patient token first
+      const { data: patientResult } = await supabase
+        .rpc('get_patient_by_token', { patient_token: patientId });
+      
+      if (!patientResult || patientResult.length === 0) return;
+      
+      // Load conversation using secure function
+      const { data: conversationData, error } = await supabase
+        .rpc('get_patient_conversations_by_token', { patient_token: patientId });
 
       if (error) {
         console.error('Error loading conversation:', error);
         return;
       }
 
-      setMessages((data || []) as Message[]);
+      const formattedMessages: Message[] = (conversationData || []).map((msg: any) => ({
+        id: msg.id,
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        created_at: msg.created_at
+      }));
+
+      setMessages(formattedMessages);
     } catch (error) {
       console.error('Error loading conversation:', error);
     } finally {
@@ -69,28 +82,19 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
   };
 
   const initializeChat = async () => {
-    // Check if conversation already exists
+    // Check if conversation already exists using secure function
     const { data: existingMessages } = await supabase
-      .from('patient_conversations')
-      .select('*')
-      .eq('patient_id', patientId)
-      .limit(1);
+      .rpc('get_patient_conversations_by_token', { patient_token: patientId });
 
     if (!existingMessages || existingMessages.length === 0) {
-      // Add initial AI greeting
-      const welcomeMessage = {
-        patient_id: patientId,
-        role: 'assistant' as const,
-        content: '¡Hola! Soy su asistente de IA para la evaluación pre-anestésica. Basándome en la información que ya proporcionó en el formulario, me gustaría hacerle algunas preguntas adicionales para asegurarme de que tenemos toda la información necesaria para su procedimiento. ¿Está listo para comenzar?'
-      };
+      // Add initial AI greeting using secure function
+      await supabase.rpc('add_conversation_message_by_token', {
+        patient_token: patientId,
+        message_role: 'assistant',
+        message_content: '¡Hola! Soy su asistente de IA para la evaluación pre-anestésica. Basándome en la información que ya proporcionó en el formulario, me gustaría hacerle algunas preguntas adicionales para asegurarme de que tenemos toda la información necesaria para su procedimiento. ¿Está listo para comenzar?'
+      });
 
-      const { error } = await supabase
-        .from('patient_conversations')
-        .insert([welcomeMessage]);
-
-      if (!error) {
-        loadConversation();
-      }
+      loadConversation();
     }
   };
 
@@ -109,27 +113,24 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
     try {
       // Update patient status to "En progreso" if this is their first message
       if (messages.length <= 1) { // Only AI greeting exists
-        await supabase
-          .from('patients')
-          .update({ status: 'En progreso' })
-          .eq('id', patientId);
+        await supabase.rpc('update_patient_by_token', {
+          patient_token: patientId,
+          new_status: 'En progreso'
+        });
       }
 
-      // Save user message
-      const { error: userError } = await supabase
-        .from('patient_conversations')
-        .insert([userMessage]);
+      // Save user message using secure function
+      await supabase.rpc('add_conversation_message_by_token', {
+        patient_token: patientId,
+        message_role: 'user',
+        message_content: input.trim()
+      });
 
-      if (userError) {
-        throw userError;
-      }
-
-      // Get patient data for context
-      const { data: patientData } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('id', patientId)
-        .single();
+      // Get patient data for context using secure function
+      const { data: patientResult } = await supabase
+        .rpc('get_patient_by_token', { patient_token: patientId });
+      
+      const patientData = patientResult?.[0];
 
       // Get conversation history for context
       const conversationHistory = messages.map(msg => ({
@@ -159,20 +160,12 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
         });
       }
 
-      // Save AI response
-      const assistantMessage = {
-        patient_id: patientId,
-        role: 'assistant' as const,
-        content: aiResponse.response || 'Lo siento, hubo un error procesando su mensaje. Por favor intente nuevamente.'
-      };
-
-      const { error: assistantError } = await supabase
-        .from('patient_conversations')
-        .insert([assistantMessage]);
-
-      if (assistantError) {
-        throw assistantError;
-      }
+      // Save AI response using secure function
+      await supabase.rpc('add_conversation_message_by_token', {
+        patient_token: patientId,
+        message_role: 'assistant',
+        message_content: aiResponse.response || 'Lo siento, hubo un error procesando su mensaje. Por favor intente nuevamente.'
+      });
 
       // Reload conversation
       loadConversation();
