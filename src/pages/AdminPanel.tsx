@@ -42,61 +42,88 @@ const AdminPanel = () => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const data = new Uint8Array(e.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
+        let data: ArrayBuffer;
         
-        // Parse with headers to get proper column mapping
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-        const headers = jsonData[0] as string[];
-        const rows = jsonData.slice(1);
+        // Handle CSV files with proper UTF-8 encoding
+        if (file.name.toLowerCase().endsWith('.csv')) {
+          const text = new TextDecoder('utf-8').decode(e.target?.result as ArrayBuffer);
+          
+          // Parse CSV manually to preserve UTF-8 encoding
+          const lines = text.split('\n').filter(line => line.trim());
+          const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+          const rows = lines.slice(1).map(line => {
+            // Simple CSV parser that handles quoted values
+            const values = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+              const char = line[i];
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            values.push(current.trim()); // Add the last value
+            
+            return values;
+          });
 
-        console.log('Headers detected:', headers);
-        console.log('Sample row:', rows[0]);
+          console.log('Headers detected:', headers);
+          console.log('Sample row:', rows[0]);
 
-        // Detect column mapping
-        const getColumnIndex = (possibleNames: string[]) => {
-          return possibleNames.reduce((found, name) => {
-            if (found !== -1) return found;
-            return headers.findIndex(h => h && h.toLowerCase().includes(name.toLowerCase()));
-          }, -1);
-        };
+          // Process the data
+          const processedData = processPatientData(headers, rows);
+          
+          if (processedData.length === 0) {
+            throw new Error('No se encontraron datos válidos de pacientes. Asegúrate de que el archivo tenga las columnas: nombre, email y DNI');
+          }
 
-        const nameIndex = getColumnIndex(['name', 'nombre']);
-        const emailIndex = getColumnIndex(['email', 'correo']);
-        const phoneIndex = getColumnIndex(['phone', 'telefono', 'teléfono']);
-        const birthDateIndex = getColumnIndex(['birth_date', 'birthdate', 'fecha_nacimiento', 'nacimiento']);
-        const procedureIndex = getColumnIndex(['procedure', 'procedimiento']);
-        const procedureDateIndex = getColumnIndex(['procedure_date', 'proceduredate', 'fecha_procedimiento', 'fecha_cirugía']);
-        const dniIndex = getColumnIndex(['dni', 'id_paciente', 'identificacion']);
+          // Save patients to database
+          const savedPatients = await savePatientsToDB(processedData);
+          
+          setPatients(savedPatients);
+          setUploadStatus('success');
+          toast({
+            title: "Archivo procesado exitosamente",
+            description: `Se guardaron ${savedPatients.length} pacientes en la base de datos.`,
+          });
+        } else {
+          // Handle Excel files
+          data = e.target?.result as ArrayBuffer;
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          
+          // Parse with headers to get proper column mapping
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          const headers = jsonData[0] as string[];
+          const rows = jsonData.slice(1);
 
-        // Convert to patient objects
-        const patientData: (PatientData & { dni?: string })[] = rows.map((row: any) => ({
-          name: nameIndex !== -1 ? (row[nameIndex] || '') : '',
-          email: emailIndex !== -1 ? (row[emailIndex] || '') : '',
-          phone: phoneIndex !== -1 ? (row[phoneIndex] || '') : '',
-          birthDate: birthDateIndex !== -1 ? (row[birthDateIndex] || '') : '',
-          procedure: procedureIndex !== -1 ? (row[procedureIndex] || '') : '',
-          procedureDate: procedureDateIndex !== -1 ? (row[procedureDateIndex] || '') : '',
-          dni: dniIndex !== -1 ? (row[dniIndex] || '') : ''
-        })).filter(patient => patient.name && patient.email && patient.dni);
+          console.log('Headers detected:', headers);
+          console.log('Sample row:', rows[0]);
 
-        console.log('Processed patients:', patientData.length);
+          // Process the data
+          const processedData = processPatientData(headers, rows);
+          
+          if (processedData.length === 0) {
+            throw new Error('No se encontraron datos válidos de pacientes. Asegúrate de que el archivo tenga las columnas: nombre, email y DNI');
+          }
 
-        if (patientData.length === 0) {
-          throw new Error('No se encontraron datos válidos de pacientes. Asegúrate de que el archivo tenga las columnas: nombre, email y DNI');
+          // Save patients to database
+          const savedPatients = await savePatientsToDB(processedData);
+          
+          setPatients(savedPatients);
+          setUploadStatus('success');
+          toast({
+            title: "Archivo procesado exitosamente",
+            description: `Se guardaron ${savedPatients.length} pacientes en la base de datos.`,
+          });
         }
-
-        // Save patients to database
-        const savedPatients = await savePatientsToDB(patientData);
-        
-        setPatients(savedPatients);
-        setUploadStatus('success');
-        toast({
-          title: "Archivo procesado exitosamente",
-          description: `Se guardaron ${savedPatients.length} pacientes en la base de datos.`,
-        });
       } catch (error) {
         console.error('Error reading file:', error);
         setUploadStatus('error');
@@ -109,6 +136,38 @@ const AdminPanel = () => {
     };
 
     reader.readAsArrayBuffer(file);
+  };
+
+  const processPatientData = (headers: string[], rows: any[]): (PatientData & { dni?: string })[] => {
+    // Detect column mapping
+    const getColumnIndex = (possibleNames: string[]) => {
+      return possibleNames.reduce((found, name) => {
+        if (found !== -1) return found;
+        return headers.findIndex(h => h && h.toLowerCase().includes(name.toLowerCase()));
+      }, -1);
+    };
+
+    const nameIndex = getColumnIndex(['name', 'nombre']);
+    const emailIndex = getColumnIndex(['email', 'correo']);
+    const phoneIndex = getColumnIndex(['phone', 'telefono', 'teléfono']);
+    const birthDateIndex = getColumnIndex(['birth_date', 'birthdate', 'fecha_nacimiento', 'nacimiento']);
+    const procedureIndex = getColumnIndex(['procedure', 'procedimiento']);
+    const procedureDateIndex = getColumnIndex(['procedure_date', 'proceduredate', 'fecha_procedimiento', 'fecha_cirugía']);
+    const dniIndex = getColumnIndex(['dni', 'id_paciente', 'identificacion']);
+
+    // Convert to patient objects
+    const patientData: (PatientData & { dni?: string })[] = rows.map((row: any) => ({
+      name: nameIndex !== -1 ? (row[nameIndex] || '').toString().trim() : '',
+      email: emailIndex !== -1 ? (row[emailIndex] || '').toString().trim() : '',
+      phone: phoneIndex !== -1 ? (row[phoneIndex] || '').toString().trim() : '',
+      birthDate: birthDateIndex !== -1 ? (row[birthDateIndex] || '').toString().trim() : '',
+      procedure: procedureIndex !== -1 ? (row[procedureIndex] || '').toString().trim() : '',
+      procedureDate: procedureDateIndex !== -1 ? (row[procedureDateIndex] || '').toString().trim() : '',
+      dni: dniIndex !== -1 ? (row[dniIndex] || '').toString().trim() : ''
+    })).filter(patient => patient.name && patient.email && patient.dni);
+
+    console.log('Processed patients:', patientData.length);
+    return patientData;
   };
 
   const generateUniqueToken = (patient: PatientData, index: number): string => {
