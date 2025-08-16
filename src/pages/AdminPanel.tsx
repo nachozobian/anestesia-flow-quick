@@ -201,6 +201,7 @@ const AdminPanel = () => {
 
   const savePatientsToDB = async (patientData: (PatientData & { dni?: string })[]): Promise<PatientData[]> => {
     const processedPatients = [];
+    const newPatientIds: string[] = [];
     
     for (let index = 0; index < patientData.length; index++) {
       const patient = patientData[index];
@@ -246,6 +247,9 @@ const AdminPanel = () => {
           continue;
         }
 
+        // Store the new patient ID for SMS sending
+        newPatientIds.push(data.id);
+
         processedPatients.push({
           name: data.name,
           email: data.email,
@@ -257,6 +261,39 @@ const AdminPanel = () => {
       } catch (error) {
         console.error(`Error processing patient ${patient.name}:`, error);
         continue;
+      }
+    }
+
+    // Send SMS to all newly created patients
+    if (newPatientIds.length > 0) {
+      try {
+        console.log(`Enviando SMS a ${newPatientIds.length} pacientes nuevos...`);
+        
+        const { data: smsResult, error: smsError } = await supabase.functions.invoke('send-patient-links', {
+          body: { patientIds: newPatientIds }
+        });
+
+        if (smsError) {
+          console.error('Error sending SMS batch:', smsError);
+          toast({
+            title: "Pacientes guardados",
+            description: `Se guardaron ${processedPatients.length} pacientes, pero hubo errores enviando SMS.`,
+            variant: "destructive",
+          });
+        } else {
+          const { summary } = smsResult;
+          toast({
+            title: "¡Proceso completado!",
+            description: `${processedPatients.length} pacientes guardados. SMS enviados: ${summary.sent}/${summary.total}`,
+          });
+        }
+      } catch (error) {
+        console.error('Error calling SMS function:', error);
+        toast({
+          title: "Pacientes guardados",
+          description: `Se guardaron ${processedPatients.length} pacientes, pero no se pudieron enviar los SMS.`,
+          variant: "destructive",
+        });
       }
     }
 

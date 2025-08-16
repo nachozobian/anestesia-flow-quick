@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.send-appointment-sms]
 verify_jwt = false
+
+[functions.send-patient-links]
+verify_jwt = true
+
+[functions.openai-chat]
+verify_jwt = false
