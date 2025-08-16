@@ -111,8 +111,32 @@ const AdminPanel = () => {
   };
 
   const generateUniqueToken = (patient: PatientData, index: number): string => {
-    const rawToken = `${patient.email}-${patient.name}-${index}-${Date.now()}`;
-    return btoa(rawToken).replace(/[^a-zA-Z0-9]/g, '').substring(0, 24);
+    const rawToken = `${patient.email}-${patient.name}-${index}-${Date.now()}-${Math.random()}`;
+    return btoa(rawToken).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+  };
+
+  const checkAndGenerateUniqueToken = async (patient: PatientData, index: number): Promise<string> => {
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      const token = generateUniqueToken(patient, index + attempts);
+      
+      // Check if token already exists
+      const { data } = await supabase
+        .from('patients')
+        .select('id')
+        .eq('token', token)
+        .single();
+      
+      if (!data) {
+        return token; // Token is unique
+      }
+      
+      attempts++;
+    }
+    
+    throw new Error(`No se pudo generar un token único para ${patient.name}`);
   };
 
   const generateUniqueDNI = (patient: PatientData, index: number): string => {
@@ -122,36 +146,55 @@ const AdminPanel = () => {
   };
 
   const savePatientsToDB = async (patientData: PatientData[]): Promise<PatientData[]> => {
-    const patientsToInsert = patientData.map((patient, index) => ({
-      dni: generateUniqueDNI(patient, index),
-      name: patient.name,
-      email: patient.email,
-      phone: patient.phone || null,
-      birth_date: patient.birthDate ? new Date(patient.birthDate).toISOString().split('T')[0] : null,
-      procedure: patient.procedure || null,
-      procedure_date: patient.procedureDate ? new Date(patient.procedureDate).toISOString().split('T')[0] : null,
-      token: generateUniqueToken(patient, index),
-      status: 'Pendientes'
-    }));
+    const processedPatients = [];
+    
+    for (let index = 0; index < patientData.length; index++) {
+      const patient = patientData[index];
+      try {
+        const uniqueToken = await checkAndGenerateUniqueToken(patient, index);
+        
+        const patientToInsert = {
+          dni: generateUniqueDNI(patient, index),
+          name: patient.name,
+          email: patient.email,
+          phone: patient.phone || null,
+          birth_date: patient.birthDate ? new Date(patient.birthDate).toISOString().split('T')[0] : null,
+          procedure: patient.procedure || null,
+          procedure_date: patient.procedureDate ? new Date(patient.procedureDate).toISOString().split('T')[0] : null,
+          token: uniqueToken,
+          status: 'Pendientes'
+        };
 
-    const { data, error } = await supabase
-      .from('patients')
-      .insert(patientsToInsert)
-      .select();
+        const { data, error } = await supabase
+          .from('patients')
+          .insert([patientToInsert])
+          .select()
+          .single();
 
-    if (error) {
-      console.error('Error saving patients:', error);
-      throw new Error('Error al guardar pacientes en la base de datos');
+        if (error) {
+          console.error(`Error saving patient ${patient.name}:`, error);
+          continue; // Skip this patient and continue with the next one
+        }
+
+        processedPatients.push({
+          name: data.name,
+          email: data.email,
+          phone: data.phone || '',
+          birthDate: data.birth_date || '',
+          procedure: data.procedure || '',
+          procedureDate: data.procedure_date || ''
+        });
+      } catch (error) {
+        console.error(`Error processing patient ${patient.name}:`, error);
+        continue; // Skip this patient and continue with the next one
+      }
     }
 
-    return data.map(dbPatient => ({
-      name: dbPatient.name,
-      email: dbPatient.email,
-      phone: dbPatient.phone || '',
-      birthDate: dbPatient.birth_date || '',
-      procedure: dbPatient.procedure || '',
-      procedureDate: dbPatient.procedure_date || ''
-    }));
+    if (processedPatients.length === 0) {
+      throw new Error('No se pudo guardar ningún paciente en la base de datos');
+    }
+
+    return processedPatients;
   };
 
   const generatePatientLink = (patient: PatientData, index: number): string => {
