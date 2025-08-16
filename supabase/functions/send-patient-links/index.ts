@@ -83,8 +83,9 @@ serve(async (req) => {
             })
           : 'Por confirmar';
 
-        // Create consultation link - pointing to DNI verification page
-        const consultationLink = `${Deno.env.get('SUPABASE_URL')?.replace('https://fxolgklxzibbakbrokcn.supabase.co', 'https://fxolgklxzibbakbrokcn.lovable.app') || 'https://fxolgklxzibbakbrokcn.lovable.app'}/verify`;
+        // Create consultation link using configurable frontend URL
+        const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://fxolgklxzibbakbrokcn.lovable.app';
+        const consultationLink = `${frontendUrl}/verify`;
 
         // Create SMS message (within 160 character limit)
         const message = `Hola ${patient.name.split(' ')[0]}! Tu ${patient.procedure || 'procedimiento'} es el ${procedureDate}. Accede con tu DNI: ${consultationLink}`;
