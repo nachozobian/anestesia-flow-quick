@@ -46,17 +46,46 @@ const AdminPanel = () => {
         const workbook = XLSX.read(data, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
+        
+        // Parse with headers to get proper column mapping
         const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        const headers = jsonData[0] as string[];
+        const rows = jsonData.slice(1);
 
-        // Skip header row and convert to patient objects
-        const patientData: PatientData[] = jsonData.slice(1).map((row: any) => ({
-          name: row[0] || '',
-          email: row[1] || '',
-          phone: row[2] || '',
-          birthDate: row[3] || '',
-          procedure: row[4] || '',
-          procedureDate: row[5] || ''
+        console.log('Headers detected:', headers);
+        console.log('Sample row:', rows[0]);
+
+        // Detect column mapping
+        const getColumnIndex = (possibleNames: string[]) => {
+          return possibleNames.reduce((found, name) => {
+            if (found !== -1) return found;
+            return headers.findIndex(h => h && h.toLowerCase().includes(name.toLowerCase()));
+          }, -1);
+        };
+
+        const nameIndex = getColumnIndex(['name', 'nombre']);
+        const emailIndex = getColumnIndex(['email', 'correo']);
+        const phoneIndex = getColumnIndex(['phone', 'telefono', 'teléfono']);
+        const birthDateIndex = getColumnIndex(['birth_date', 'birthdate', 'fecha_nacimiento', 'nacimiento']);
+        const procedureIndex = getColumnIndex(['procedure', 'procedimiento']);
+        const procedureDateIndex = getColumnIndex(['procedure_date', 'proceduredate', 'fecha_procedimiento', 'fecha_cirugía']);
+        const dniIndex = getColumnIndex(['dni', 'id_paciente', 'identificacion']);
+
+        // Convert to patient objects
+        const patientData: PatientData[] = rows.map((row: any) => ({
+          name: nameIndex !== -1 ? (row[nameIndex] || '') : '',
+          email: emailIndex !== -1 ? (row[emailIndex] || '') : '',
+          phone: phoneIndex !== -1 ? (row[phoneIndex] || '') : '',
+          birthDate: birthDateIndex !== -1 ? (row[birthDateIndex] || '') : '',
+          procedure: procedureIndex !== -1 ? (row[procedureIndex] || '') : '',
+          procedureDate: procedureDateIndex !== -1 ? (row[procedureDateIndex] || '') : ''
         })).filter(patient => patient.name && patient.email);
+
+        console.log('Processed patients:', patientData.length);
+
+        if (patientData.length === 0) {
+          throw new Error('No se encontraron datos válidos de pacientes');
+        }
 
         // Save patients to database
         const savedPatients = await savePatientsToDB(patientData);
@@ -72,7 +101,7 @@ const AdminPanel = () => {
         setUploadStatus('error');
         toast({
           title: "Error",
-          description: "Error al procesar el archivo. Verifica el formato.",
+          description: error instanceof Error ? error.message : "Error al procesar el archivo. Verifica el formato.",
           variant: "destructive",
         });
       }
