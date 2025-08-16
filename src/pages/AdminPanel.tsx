@@ -32,7 +32,7 @@ const AdminPanel = () => {
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -40,7 +40,7 @@ const AdminPanel = () => {
     setUploadStatus('uploading');
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -58,11 +58,14 @@ const AdminPanel = () => {
           procedureDate: row[5] || ''
         })).filter(patient => patient.name && patient.email);
 
-        setPatients(patientData);
+        // Save patients to database
+        const savedPatients = await savePatientsToDB(patientData);
+        
+        setPatients(savedPatients);
         setUploadStatus('success');
         toast({
           title: "Archivo procesado exitosamente",
-          description: `Se procesaron ${patientData.length} pacientes correctamente.`,
+          description: `Se guardaron ${savedPatients.length} pacientes en la base de datos.`,
         });
       } catch (error) {
         console.error('Error reading file:', error);
@@ -76,6 +79,50 @@ const AdminPanel = () => {
     };
 
     reader.readAsArrayBuffer(file);
+  };
+
+  const generateUniqueToken = (patient: PatientData, index: number): string => {
+    const rawToken = `${patient.email}-${patient.name}-${index}-${Date.now()}`;
+    return btoa(rawToken).replace(/[^a-zA-Z0-9]/g, '').substring(0, 24);
+  };
+
+  const generateUniqueDNI = (patient: PatientData, index: number): string => {
+    // Generate a temporary DNI based on patient info if not provided
+    const hash = btoa(`${patient.name}-${patient.email}-${index}`).replace(/[^0-9]/g, '');
+    return hash.substring(0, 8).padStart(8, '0');
+  };
+
+  const savePatientsToDB = async (patientData: PatientData[]): Promise<PatientData[]> => {
+    const patientsToInsert = patientData.map((patient, index) => ({
+      dni: generateUniqueDNI(patient, index),
+      name: patient.name,
+      email: patient.email,
+      phone: patient.phone || null,
+      birth_date: patient.birthDate ? new Date(patient.birthDate).toISOString().split('T')[0] : null,
+      procedure: patient.procedure || null,
+      procedure_date: patient.procedureDate ? new Date(patient.procedureDate).toISOString().split('T')[0] : null,
+      token: generateUniqueToken(patient, index),
+      status: 'Pendientes'
+    }));
+
+    const { data, error } = await supabase
+      .from('patients')
+      .insert(patientsToInsert)
+      .select();
+
+    if (error) {
+      console.error('Error saving patients:', error);
+      throw new Error('Error al guardar pacientes en la base de datos');
+    }
+
+    return data.map(dbPatient => ({
+      name: dbPatient.name,
+      email: dbPatient.email,
+      phone: dbPatient.phone || '',
+      birthDate: dbPatient.birth_date || '',
+      procedure: dbPatient.procedure || '',
+      procedureDate: dbPatient.procedure_date || ''
+    }));
   };
 
   const generatePatientLink = (patient: PatientData, index: number): string => {
