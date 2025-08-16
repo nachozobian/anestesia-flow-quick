@@ -72,19 +72,20 @@ const AdminPanel = () => {
         const dniIndex = getColumnIndex(['dni', 'id_paciente', 'identificacion']);
 
         // Convert to patient objects
-        const patientData: PatientData[] = rows.map((row: any) => ({
+        const patientData: (PatientData & { dni?: string })[] = rows.map((row: any) => ({
           name: nameIndex !== -1 ? (row[nameIndex] || '') : '',
           email: emailIndex !== -1 ? (row[emailIndex] || '') : '',
           phone: phoneIndex !== -1 ? (row[phoneIndex] || '') : '',
           birthDate: birthDateIndex !== -1 ? (row[birthDateIndex] || '') : '',
           procedure: procedureIndex !== -1 ? (row[procedureIndex] || '') : '',
-          procedureDate: procedureDateIndex !== -1 ? (row[procedureDateIndex] || '') : ''
-        })).filter(patient => patient.name && patient.email);
+          procedureDate: procedureDateIndex !== -1 ? (row[procedureDateIndex] || '') : '',
+          dni: dniIndex !== -1 ? (row[dniIndex] || '') : ''
+        })).filter(patient => patient.name && patient.email && patient.dni);
 
         console.log('Processed patients:', patientData.length);
 
         if (patientData.length === 0) {
-          throw new Error('No se encontraron datos válidos de pacientes');
+          throw new Error('No se encontraron datos válidos de pacientes. Asegúrate de que el archivo tenga las columnas: nombre, email y DNI');
         }
 
         // Save patients to database
@@ -139,22 +140,28 @@ const AdminPanel = () => {
     throw new Error(`No se pudo generar un token único para ${patient.name}`);
   };
 
-  const generateUniqueDNI = (patient: PatientData, index: number): string => {
-    // Generate a temporary DNI based on patient info if not provided
-    const hash = btoa(`${patient.name}-${patient.email}-${index}`).replace(/[^0-9]/g, '');
-    return hash.substring(0, 8).padStart(8, '0');
-  };
-
-  const savePatientsToDB = async (patientData: PatientData[]): Promise<PatientData[]> => {
+  const savePatientsToDB = async (patientData: (PatientData & { dni?: string })[]): Promise<PatientData[]> => {
     const processedPatients = [];
     
     for (let index = 0; index < patientData.length; index++) {
       const patient = patientData[index];
       try {
+        // Check if patient with this DNI already exists
+        const { data: existingPatient } = await supabase
+          .from('patients')
+          .select('id')
+          .eq('dni', patient.dni)
+          .single();
+        
+        if (existingPatient) {
+          console.log(`Paciente con DNI ${patient.dni} ya existe, saltando...`);
+          continue;
+        }
+
         const uniqueToken = await checkAndGenerateUniqueToken(patient, index);
         
         const patientToInsert = {
-          dni: generateUniqueDNI(patient, index),
+          dni: patient.dni!,
           name: patient.name,
           email: patient.email,
           phone: patient.phone || null,
@@ -172,8 +179,12 @@ const AdminPanel = () => {
           .single();
 
         if (error) {
+          if (error.code === '23505') { // Unique constraint violation
+            console.log(`Paciente ${patient.name} ya existe, saltando...`);
+            continue;
+          }
           console.error(`Error saving patient ${patient.name}:`, error);
-          continue; // Skip this patient and continue with the next one
+          continue;
         }
 
         processedPatients.push({
@@ -186,12 +197,8 @@ const AdminPanel = () => {
         });
       } catch (error) {
         console.error(`Error processing patient ${patient.name}:`, error);
-        continue; // Skip this patient and continue with the next one
+        continue;
       }
-    }
-
-    if (processedPatients.length === 0) {
-      throw new Error('No se pudo guardar ningún paciente en la base de datos');
     }
 
     return processedPatients;
