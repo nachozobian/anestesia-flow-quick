@@ -422,7 +422,7 @@ export type Database = {
         Returns: boolean
       }
       verify_dni_and_security_code: {
-        Args: { patient_dni: string; security_code: string }
+        Args: { input_security_code: string; patient_dni: string }
         Returns: {
           token: string
         }[]
