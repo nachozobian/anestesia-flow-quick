@@ -42,38 +42,13 @@ serve(async (req) => {
       );
     }
 
-    // Get Twilio credentials
-    const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-    const authToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
+    // Get AWS Lambda URL
+    const lambdaSmsUrl = Deno.env.get('AWS_LAMBDA_SMS_URL');
 
-    // Debug all environment variables related to Twilio
-    console.log('=== DEBUGGING TWILIO CREDENTIALS ===');
-    console.log('TWILIO_ACCOUNT_SID exists:', !!accountSid);
-    console.log('TWILIO_AUTH_TOKEN exists:', !!authToken);
-    console.log('TWILIO_PHONE_NUMBER exists:', !!twilioPhoneNumber);
-    
-    if (accountSid) {
-      console.log('AccountSID starts with:', accountSid.substring(0, 5));
-      console.log('AccountSID length:', accountSid.length);
-    }
-    if (authToken) {
-      console.log('AuthToken starts with:', authToken.substring(0, 5));
-      console.log('AuthToken length:', authToken.length);
-    }
-    if (twilioPhoneNumber) {
-      console.log('Phone number:', twilioPhoneNumber);
-    }
-    console.log('=== END DEBUG ===');
-
-    if (!accountSid || !authToken || !twilioPhoneNumber) {
-      console.error('Missing Twilio credentials - detailed check:', {
-        accountSid: accountSid || 'MISSING',
-        authToken: authToken || 'MISSING', 
-        twilioPhoneNumber: twilioPhoneNumber || 'MISSING'
-      });
+    if (!lambdaSmsUrl) {
+      console.error('Missing AWS Lambda SMS URL');
       return new Response(
-        JSON.stringify({ error: 'Configuración de Twilio incompleta' }),
+        JSON.stringify({ error: 'Configuración de Lambda incompleta' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -94,47 +69,41 @@ Procedimiento: ${patient.procedure || procedure}
 Llegue 30min antes.
 Clínica Médica`;
 
-    // Send SMS via Twilio
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
-    const auth = btoa(`${accountSid}:${authToken}`);
-
-    // Remove spaces from phone number to match Twilio verification format
+    // Remove spaces from phone number
     const cleanPhoneNumber = patient.phone.replace(/\s+/g, '');
 
-    const twilioResponse = await fetch(twilioUrl, {
+    // Send SMS via AWS Lambda
+    const lambdaResponse = await fetch(lambdaSmsUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
       },
-      body: new URLSearchParams({
-        To: cleanPhoneNumber,
-        From: twilioPhoneNumber,
-        Body: message,
+      body: JSON.stringify({
+        phoneNumber: cleanPhoneNumber,
+        message: message,
+        patientName: patient.name
       }),
     });
 
-    const twilioData = await twilioResponse.json();
+    const lambdaData = await lambdaResponse.json();
 
-    console.log('Twilio request details:', {
+    console.log('Lambda request details:', {
       to: cleanPhoneNumber,
-      from: twilioPhoneNumber,
       messageLength: message.length
     });
     
-    console.log('Twilio response status:', twilioResponse.status);
-    console.log('Twilio response data:', JSON.stringify(twilioData, null, 2));
+    console.log('Lambda response status:', lambdaResponse.status);
+    console.log('Lambda response data:', JSON.stringify(lambdaData, null, 2));
 
-    if (!twilioResponse.ok) {
-      console.error('Twilio error:', twilioData);
+    if (!lambdaResponse.ok || !lambdaData.success) {
+      console.error('Lambda error:', lambdaData);
       return new Response(
-        JSON.stringify({ error: 'Error enviando SMS', details: twilioData }),
+        JSON.stringify({ error: 'Error enviando SMS', details: lambdaData }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('SMS sent successfully - SID:', twilioData.sid);
-    console.log('SMS status:', twilioData.status);
+    console.log('SMS sent successfully - MessageId:', lambdaData.messageId || 'sent');
 
     // Update patient status to reflect appointment has been scheduled
     const { error: updateError } = await supabase
@@ -149,12 +118,12 @@ Clínica Médica`;
       console.error('Error updating patient status:', updateError);
     }
 
-    console.log('SMS sent successfully:', twilioData.sid);
+    console.log('Patient status updated successfully');
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        messageSid: twilioData.sid,
+        messageSid: lambdaData.messageId || 'lambda-sent',
         appointmentDate: formattedDate
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
