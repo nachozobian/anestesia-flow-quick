@@ -10,6 +10,7 @@ import { Shield, User } from 'lucide-react';
 
 const DNIVerification = () => {
   const [dni, setDni] = useState('');
+  const [securityCode, setSecurityCode] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -25,17 +26,29 @@ const DNIVerification = () => {
       return;
     }
 
+    if (!securityCode.trim()) {
+      toast({
+        title: "Error",
+        description: "Por favor ingrese el código de seguridad",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      // Use secure function to verify DNI and get token
+      // Use secure function to verify DNI and security code
       const { data, error } = await supabase
-        .rpc('verify_dni_and_get_token', { patient_dni: dni.trim() });
+        .rpc('verify_dni_and_security_code', { 
+          patient_dni: dni.trim(),
+          security_code: securityCode.trim()
+        });
 
       if (error) {
-        console.error('Error checking DNI:', error);
+        console.error('Error checking DNI and security code:', error);
         toast({
           title: "Error",
-          description: "Error al verificar el DNI. Intente nuevamente.",
+          description: "Error al verificar las credenciales. Intente nuevamente.",
           variant: "destructive"
         });
         return;
@@ -43,8 +56,8 @@ const DNIVerification = () => {
 
       if (!data || data.length === 0) {
         toast({
-          title: "DNI no encontrado",
-          description: "No se encontró ningún paciente con este DNI. Verifique el número ingresado.",
+          title: "Credenciales incorrectas",
+          description: "DNI o código de seguridad incorrecto. Verifique los datos ingresados.",
           variant: "destructive"
         });
         return;
@@ -75,7 +88,7 @@ const DNIVerification = () => {
           <div>
             <CardTitle className="text-2xl font-bold">Verificación de Identidad</CardTitle>
             <CardDescription className="text-base mt-2">
-              Ingrese su DNI para acceder a su evaluación pre-anestésica
+              Ingrese su DNI y el código de seguridad enviado por SMS
             </CardDescription>
           </div>
         </CardHeader>
@@ -99,17 +112,35 @@ const DNIVerification = () => {
                 />
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="securityCode" className="text-sm font-medium">
+                Código de Seguridad
+              </Label>
+              <div className="relative">
+                <Shield className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="securityCode"
+                  type="text"
+                  placeholder="Ej: 123456"
+                  value={securityCode}
+                  onChange={(e) => setSecurityCode(e.target.value)}
+                  className="pl-10"
+                  disabled={loading}
+                  maxLength={6}
+                />
+              </div>
+            </div>
             <Button 
               type="submit" 
               className="w-full" 
               disabled={loading}
             >
-              {loading ? "Verificando..." : "Verificar DNI"}
+              {loading ? "Verificando..." : "Verificar Credenciales"}
             </Button>
           </form>
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              ¿No tiene su DNI a mano? Contacte a su centro médico para obtener asistencia.
+              ¿No recibió el código de seguridad? Contacte a su centro médico para obtener asistencia.
             </p>
           </div>
         </CardContent>

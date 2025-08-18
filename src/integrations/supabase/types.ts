@@ -213,6 +213,7 @@ export type Database = {
           phone: string | null
           procedure: string | null
           procedure_date: string | null
+          security_code: string | null
           status: string | null
           token: string
           updated_at: string | null
@@ -227,6 +228,7 @@ export type Database = {
           phone?: string | null
           procedure?: string | null
           procedure_date?: string | null
+          security_code?: string | null
           status?: string | null
           token: string
           updated_at?: string | null
@@ -241,6 +243,7 @@ export type Database = {
           phone?: string | null
           procedure?: string | null
           procedure_date?: string | null
+          security_code?: string | null
           status?: string | null
           token?: string
           updated_at?: string | null
@@ -420,6 +423,12 @@ export type Database = {
       }
       verify_dni_and_get_token: {
         Args: { patient_dni: string }
+        Returns: {
+          token: string
+        }[]
+      }
+      verify_dni_and_security_code: {
+        Args: { patient_dni: string; security_code: string }
         Returns: {
           token: string
         }[]

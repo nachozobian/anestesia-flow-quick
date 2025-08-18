@@ -30,7 +30,7 @@ serve(async (req) => {
     // Get patient data
     const { data: patient, error: patientError } = await supabase
       .from('patients')
-      .select('name, phone, procedure')
+      .select('name, phone, procedure, security_code, token')
       .eq('id', patientId)
       .single();
 
@@ -53,6 +53,29 @@ serve(async (req) => {
       );
     }
 
+    // Generate a 6-digit security code if not already present
+    let securityCode = patient.security_code;
+    if (!securityCode) {
+      securityCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Update patient with security code
+      const { error: updateError } = await supabase
+        .from('patients')
+        .update({ security_code: securityCode })
+        .eq('id', patientId);
+        
+      if (updateError) {
+        console.error('Error updating patient security code:', updateError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to generate security code' }),
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    }
+
     // Format appointment date
     const formattedDate = new Date(appointmentDate).toLocaleDateString('es-ES', {
       weekday: 'long',
@@ -63,11 +86,16 @@ serve(async (req) => {
       minute: '2-digit'
     });
 
-    // Create SMS message (shortened for trial account)
+    // Create consultation link
+    const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://fxolgklxzibbakbrokcn.lovable.app';
+    const consultationLink = `${frontendUrl}/verify`;
+
+    // Create SMS message with security code and link
     const message = `Cita: ${formattedDate}
 Procedimiento: ${patient.procedure || procedure}
-Llegue 30min antes.
-Clínica Médica`;
+Código: ${securityCode}
+Evaluación: ${consultationLink}
+Llegue 30min antes.`;
 
     // Remove spaces from phone number
     const cleanPhoneNumber = patient.phone.replace(/\s+/g, '');

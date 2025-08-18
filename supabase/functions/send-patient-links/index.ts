@@ -72,6 +72,25 @@ serve(async (req) => {
           continue;
         }
 
+        // Generate a 6-digit security code
+        const securityCode = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Update patient with security code
+        const { error: updateError } = await supabase
+          .from('patients')
+          .update({ security_code: securityCode })
+          .eq('id', patient.id);
+          
+        if (updateError) {
+          console.error('Error updating patient security code:', updateError);
+          results.push({
+            patientId: patient.id,
+            success: false,
+            error: `Failed to generate security code: ${updateError.message}`
+          });
+          continue;
+        }
+
         // Format procedure date
         const procedureDate = patient.procedure_date 
           ? new Date(patient.procedure_date).toLocaleDateString('es-ES', {
@@ -85,8 +104,8 @@ serve(async (req) => {
         const frontendUrl = Deno.env.get('FRONTEND_URL') || 'https://fxolgklxzibbakbrokcn.lovable.app';
         const consultationLink = `${frontendUrl}/verify`;
 
-        // Create SMS message (within 160 character limit)
-        const message = `Hola ${patient.name.split(' ')[0]}! Tu ${patient.procedure || 'procedimiento'} es el ${procedureDate}. Accede con tu DNI: ${consultationLink}`;
+        // Create SMS message with security code
+        const message = `Hola ${patient.name.split(' ')[0]}! Tu ${patient.procedure || 'procedimiento'} es el ${procedureDate}. Código: ${securityCode}. Accede: ${consultationLink}`;
 
         console.log(`SMS message for ${patient.name}: ${message} (${message.length} chars)`);
 
