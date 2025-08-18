@@ -41,7 +41,7 @@ const DNIVerification = () => {
       const { data, error } = await supabase
         .rpc('verify_dni_and_security_code', { 
           patient_dni: dni.trim(),
-          security_code: securityCode.trim()
+          input_security_code: securityCode.trim()
         });
 
       if (error) {
