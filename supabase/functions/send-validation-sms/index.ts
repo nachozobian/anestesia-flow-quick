@@ -49,13 +49,15 @@ serve(async (req) => {
       );
     }
 
-    // Get AWS Lambda URL
-    const lambdaSmsUrl = Deno.env.get('AWS_LAMBDA_SMS_URL');
+    // Get Twilio credentials
+    const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
+    const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
+    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
 
-    if (!lambdaSmsUrl) {
-      console.error('Missing AWS Lambda SMS URL');
+    if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
+      console.error('Missing Twilio credentials');
       return new Response(
-        JSON.stringify({ error: 'Configuración de Lambda incompleta' }),
+        JSON.stringify({ error: 'Configuración de Twilio incompleta' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -87,38 +89,42 @@ Equipo Médico`;
     console.log('Sending validation SMS to:', cleanPhoneNumber);
     console.log('Message length:', message.length);
 
-    // Send SMS via AWS Lambda
-    const lambdaResponse = await fetch(lambdaSmsUrl, {
+    // Send SMS via Twilio
+    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
+    const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
+
+    const twilioResponse = await fetch(twilioUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        'Authorization': `Basic ${twilioAuth}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
-        phoneNumber: cleanPhoneNumber,
-        message: message,
-        patientName: patient.name
-      }),
+      body: new URLSearchParams({
+        To: cleanPhoneNumber,
+        From: twilioPhoneNumber,
+        Body: message
+      }).toString(),
     });
 
-    const lambdaData = await lambdaResponse.json();
+    const twilioData = await twilioResponse.json();
 
-    console.log('Lambda response status:', lambdaResponse.status);
-    console.log('Lambda response data:', JSON.stringify(lambdaData, null, 2));
+    console.log('Twilio response status:', twilioResponse.status);
+    console.log('Twilio response data:', JSON.stringify(twilioData, null, 2));
 
-    if (!lambdaResponse.ok || !lambdaData.success) {
-      console.error('Lambda error:', lambdaData);
+    if (!twilioResponse.ok || twilioData.error_code) {
+      console.error('Twilio error:', twilioData);
       return new Response(
-        JSON.stringify({ error: 'Error enviando SMS de validación', details: lambdaData }),
+        JSON.stringify({ error: 'Error enviando SMS de validación', details: twilioData }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Validation SMS sent successfully - MessageId:', lambdaData.messageId || 'sent');
+    console.log('Validation SMS sent successfully - MessageSid:', twilioData.sid);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        messageSid: lambdaData.messageId || 'lambda-sent',
+        messageSid: twilioData.sid,
         patientName: patient.name
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
