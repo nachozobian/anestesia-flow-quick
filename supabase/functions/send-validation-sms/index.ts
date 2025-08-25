@@ -52,9 +52,9 @@ serve(async (req) => {
     // Get Twilio credentials
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
     const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const twilioPhoneNumber = Deno.env.get('TWILIO_PHONE_NUMBER');
+    const twilioMessagingServiceSid = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
 
-    if (!twilioAccountSid || !twilioAuthToken || !twilioPhoneNumber) {
+    if (!twilioAccountSid || !twilioAuthToken || !twilioMessagingServiceSid) {
       console.error('Missing Twilio credentials');
       return new Response(
         JSON.stringify({ error: 'Configuración de Twilio incompleta' }),
@@ -101,7 +101,7 @@ Equipo Médico`;
       },
       body: new URLSearchParams({
         To: cleanPhoneNumber,
-        From: twilioPhoneNumber,
+        MessagingServiceSid: twilioMessagingServiceSid,
         Body: message
       }).toString(),
     });
