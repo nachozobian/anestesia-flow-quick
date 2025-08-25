@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import PatientReportModal from './PatientReportModal';
 
 interface Patient {
   id: string;
@@ -41,6 +42,8 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const { toast } = useToast();
 
   const canEditStatus = userRole === 'Owner' || userRole === 'Nurse';
@@ -187,6 +190,13 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
         description: "Error al enviar SMS",
         variant: "destructive",
       });
+    }
+  };
+
+  const handlePatientClick = (patient: Patient) => {
+    if (patient.status === 'Completado') {
+      setSelectedPatient(patient);
+      setIsReportModalOpen(true);
     }
   };
 
@@ -401,7 +411,8 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
         <CardHeader>
           <CardTitle>Estado de Pacientes</CardTitle>
           <CardDescription>
-            Gestiona el estado de los pacientes y sus tratamientos
+            Gestiona el estado de los pacientes y sus tratamientos. 
+            Haz click en pacientes completados para ver su informe.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -427,7 +438,11 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                 </TableHeader>
                 <TableBody>
                   {filteredPatients.map((patient) => (
-                    <TableRow key={patient.id}>
+                    <TableRow 
+                      key={patient.id}
+                      className={patient.status === 'Completado' ? 'cursor-pointer hover:bg-muted/50' : ''}
+                      onClick={() => handlePatientClick(patient)}
+                    >
                       <TableCell>
                         <div>
                           <div className="font-medium">{patient.name}</div>
@@ -494,6 +509,13 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
           )}
         </CardContent>
       </Card>
+
+      {/* Patient Report Modal */}
+      <PatientReportModal
+        patient={selectedPatient}
+        open={isReportModalOpen}
+        onOpenChange={setIsReportModalOpen}
+      />
     </div>
   );
 };
