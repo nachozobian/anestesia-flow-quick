@@ -809,45 +809,45 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                                         </Badge>
                                       )}
                                     </h4>
-                                     <div className="flex items-center gap-2">
-                                       {patient.status === 'Completado' && canEditStatus && (
-                                         <AlertDialog>
-                                           <AlertDialogTrigger asChild>
-                                             <Button
-                                               size="sm"
-                                               variant="default"
-                                               className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                                             >
-                                               <Shield className="h-4 w-4" />
-                                               Validar Informe
-                                             </Button>
-                                           </AlertDialogTrigger>
-                                           <AlertDialogContent>
-                                             <AlertDialogHeader>
-                                               <AlertDialogTitle>Confirmar Validación</AlertDialogTitle>
-                                               <AlertDialogDescription>
-                                                 ¿Estás seguro de que quieres validar el informe de <strong>{patient.name}</strong>?
-                                                 <br /><br />
-                                                 Al validar el informe:
-                                                 <ul className="list-disc list-inside mt-2 space-y-1">
-                                                   <li>El estado cambiará a "Validado"</li>
-                                                   <li>Se enviará un SMS de confirmación al paciente</li>
-                                                   <li>Esta acción no se puede deshacer fácilmente</li>
-                                                 </ul>
-                                               </AlertDialogDescription>
-                                             </AlertDialogHeader>
-                                             <AlertDialogFooter>
-                                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                               <AlertDialogAction
-                                                 onClick={() => validatePatientReport(patient)}
-                                                 className="bg-green-600 hover:bg-green-700"
-                                               >
-                                                 Sí, Validar Informe
-                                               </AlertDialogAction>
-                                             </AlertDialogFooter>
-                                           </AlertDialogContent>
-                                         </AlertDialog>
-                                       )}
+                                    <div className="flex items-center gap-2">
+                                      {patient.status === 'Completado' && canEditStatus && (
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <Button
+                                              size="sm"
+                                              variant="default"
+                                              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                                            >
+                                              <Shield className="h-4 w-4" />
+                                              Validar Informe
+                                            </Button>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>Confirmar Validación</AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                ¿Estás seguro de que quieres validar el informe de <strong>{patient.name}</strong>?
+                                                <br /><br />
+                                                Al validar el informe:
+                                                <ul className="list-disc list-inside mt-2 space-y-1">
+                                                  <li>El estado cambiará a "Validado"</li>
+                                                  <li>Se enviará un SMS de confirmación al paciente</li>
+                                                  <li>Esta acción no se puede deshacer fácilmente</li>
+                                                </ul>
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                              <AlertDialogAction
+                                                onClick={() => validatePatientReport(patient)}
+                                                className="bg-green-600 hover:bg-green-700"
+                                              >
+                                                Sí, Validar Informe
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      )}
                                       <Button
                                         onClick={() => generatePDF(patient)}
                                         size="sm"
