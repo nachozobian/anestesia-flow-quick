@@ -711,9 +711,9 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPatients.map((patient) => (
-                    <React.Fragment key={patient.id}>
+                  {filteredPatients.map((patient) => [
                       <TableRow 
+                        key={patient.id}
                         className={(patient.status === 'Completado' || patient.status === 'Validado') ? 'cursor-pointer hover:bg-muted/50' : ''}
                         onClick={() => togglePatientExpansion(patient)}
                       >
@@ -791,9 +791,11 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                         )}
                       </TableRow>
                       
-                      {/* Collapsible Content */}
-                      {(patient.status === 'Completado' || patient.status === 'Validado') && expandedPatients.has(patient.id) && (
-                        <TableRow>
+                      ,
+                      
+                      /* Collapsible Content */
+                      (patient.status === 'Completado' || patient.status === 'Validado') && expandedPatients.has(patient.id) && (
+                        <TableRow key={`${patient.id}-expanded`}>
                           <TableCell colSpan={canEditStatus ? 7 : 5} className="p-0">
                             <div className="p-4 bg-muted/30">
                               {patientReports[patient.id] ? (
@@ -928,9 +930,8 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                             </div>
                           </TableCell>
                         </TableRow>
-                      )}
-                    </React.Fragment>
-                  ))}
+                      )
+                  ].filter(Boolean))}
                 </TableBody>
               </Table>
             </div>
