@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -168,6 +169,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
         throw new Error('Usuario no autenticado');
       }
 
+      // Validate the report first
       const { data, error } = await supabase.rpc('validate_patient_report', {
         patient_id: patient.id,
         validator_user_id: user.id
@@ -183,10 +185,37 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
             : p
         ));
 
-        toast({
-          title: "Informe Validado",
-          description: `El informe de ${patient.name} ha sido validado exitosamente`,
-        });
+        // Send validation SMS
+        try {
+          const { error: smsError } = await supabase.functions.invoke('send-validation-sms', {
+            body: {
+              patientId: patient.id,
+              validatorName: user.email || 'Equipo médico'
+            }
+          });
+
+          if (smsError) {
+            console.error('Error sending validation SMS:', smsError);
+            // Don't throw error, just log it - validation was successful
+            toast({
+              title: "Informe Validado",
+              description: `El informe de ${patient.name} ha sido validado, pero no se pudo enviar el SMS de confirmación`,
+              variant: "default",
+            });
+          } else {
+            toast({
+              title: "Informe Validado",
+              description: `El informe de ${patient.name} ha sido validado y se ha enviado SMS de confirmación`,
+            });
+          }
+        } catch (smsError) {
+          console.error('Error sending validation SMS:', smsError);
+          toast({
+            title: "Informe Validado",
+            description: `El informe de ${patient.name} ha sido validado, pero no se pudo enviar el SMS de confirmación`,
+            variant: "default",
+          });
+        }
       } else {
         throw new Error('No se pudo validar el informe');
       }
@@ -780,18 +809,45 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                                         </Badge>
                                       )}
                                     </h4>
-                                    <div className="flex items-center gap-2">
-                                      {patient.status === 'Completado' && canEditStatus && (
-                                        <Button
-                                          onClick={() => validatePatientReport(patient)}
-                                          size="sm"
-                                          variant="default"
-                                          className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                                        >
-                                          <Shield className="h-4 w-4" />
-                                          Validar Informe
-                                        </Button>
-                                      )}
+                                     <div className="flex items-center gap-2">
+                                       {patient.status === 'Completado' && canEditStatus && (
+                                         <AlertDialog>
+                                           <AlertDialogTrigger asChild>
+                                             <Button
+                                               size="sm"
+                                               variant="default"
+                                               className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                                             >
+                                               <Shield className="h-4 w-4" />
+                                               Validar Informe
+                                             </Button>
+                                           </AlertDialogTrigger>
+                                           <AlertDialogContent>
+                                             <AlertDialogHeader>
+                                               <AlertDialogTitle>Confirmar Validación</AlertDialogTitle>
+                                               <AlertDialogDescription>
+                                                 ¿Estás seguro de que quieres validar el informe de <strong>{patient.name}</strong>?
+                                                 <br /><br />
+                                                 Al validar el informe:
+                                                 <ul className="list-disc list-inside mt-2 space-y-1">
+                                                   <li>El estado cambiará a "Validado"</li>
+                                                   <li>Se enviará un SMS de confirmación al paciente</li>
+                                                   <li>Esta acción no se puede deshacer fácilmente</li>
+                                                 </ul>
+                                               </AlertDialogDescription>
+                                             </AlertDialogHeader>
+                                             <AlertDialogFooter>
+                                               <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                               <AlertDialogAction
+                                                 onClick={() => validatePatientReport(patient)}
+                                                 className="bg-green-600 hover:bg-green-700"
+                                               >
+                                                 Sí, Validar Informe
+                                               </AlertDialogAction>
+                                             </AlertDialogFooter>
+                                           </AlertDialogContent>
+                                         </AlertDialog>
+                                       )}
                                       <Button
                                         onClick={() => generatePDF(patient)}
                                         size="sm"
