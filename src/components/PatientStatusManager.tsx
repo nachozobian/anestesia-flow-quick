@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarIcon, Filter, Users, Clock, CheckCircle, AlertCircle, ChevronDown, ChevronRight, Download, FileText } from 'lucide-react';
+import { CalendarIcon, Filter, Users, Clock, CheckCircle, AlertCircle, ChevronDown, ChevronRight, Download, FileText, Shield } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -114,7 +114,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
     setFilteredPatients(filtered);
   };
 
-  const updatePatientStatus = async (patientId: string, newStatus: 'Pendientes' | 'En progreso' | 'Completado') => {
+  const updatePatientStatus = async (patientId: string, newStatus: 'Pendientes' | 'En progreso' | 'Completado' | 'Validado') => {
     if (!canEditStatus) {
       toast({
         title: "Sin permisos",
@@ -147,6 +147,54 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       toast({
         title: "Error",
         description: "No se pudo actualizar el estado del paciente",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const validatePatientReport = async (patient: Patient) => {
+    if (!canEditStatus) {
+      toast({
+        title: "Sin permisos",
+        description: "No tienes permisos para validar informes",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuario no autenticado');
+      }
+
+      const { data, error } = await supabase.rpc('validate_patient_report', {
+        patient_id: patient.id,
+        validator_user_id: user.id
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        // Update local state
+        setPatients(prev => prev.map(p => 
+          p.id === patient.id 
+            ? { ...p, status: 'Validado' }
+            : p
+        ));
+
+        toast({
+          title: "Informe Validado",
+          description: `El informe de ${patient.name} ha sido validado exitosamente`,
+        });
+      } else {
+        throw new Error('No se pudo validar el informe');
+      }
+    } catch (error) {
+      console.error('Error validating patient report:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo validar el informe del paciente",
         variant: "destructive",
       });
     }
@@ -195,7 +243,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
   };
 
   const togglePatientExpansion = async (patient: Patient) => {
-    if (patient.status !== 'Completado') return;
+    if (patient.status !== 'Completado' && patient.status !== 'Validado') return;
 
     const newExpanded = new Set(expandedPatients);
     if (newExpanded.has(patient.id)) {
@@ -389,6 +437,8 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
         return <Clock className="h-4 w-4" />;
       case 'Completado':
         return <CheckCircle className="h-4 w-4" />;
+      case 'Validado':
+        return <Shield className="h-4 w-4" />;
       default:
         return null;
     }
@@ -402,6 +452,8 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
         return 'secondary';
       case 'Completado':
         return 'default';
+      case 'Validado':
+        return 'default'; // Verde - será estilizado con clases personalizadas
       default:
         return 'outline';
     }
@@ -413,6 +465,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       pendientes: filteredPatients.filter(p => p.status === 'Pendientes').length,
       enProgreso: filteredPatients.filter(p => p.status === 'En progreso').length,
       completado: filteredPatients.filter(p => p.status === 'Completado').length,
+      validado: filteredPatients.filter(p => p.status === 'Validado').length,
     };
     return counts;
   };
@@ -430,7 +483,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Pacientes</CardTitle>
@@ -470,6 +523,16 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
             <div className="text-2xl font-bold text-primary">{counts.completado}</div>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Validados</CardTitle>
+            <Shield className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-600">{counts.validado}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filters */}
@@ -497,6 +560,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                   <SelectItem value="Pendientes">Pendientes</SelectItem>
                   <SelectItem value="En progreso">En progreso</SelectItem>
                   <SelectItem value="Completado">Completado</SelectItem>
+                  <SelectItem value="Validado">Validado</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -621,12 +685,12 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                   {filteredPatients.map((patient) => (
                     <React.Fragment key={patient.id}>
                       <TableRow 
-                        className={patient.status === 'Completado' ? 'cursor-pointer hover:bg-muted/50' : ''}
+                        className={(patient.status === 'Completado' || patient.status === 'Validado') ? 'cursor-pointer hover:bg-muted/50' : ''}
                         onClick={() => togglePatientExpansion(patient)}
                       >
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {patient.status === 'Completado' && (
+                            {(patient.status === 'Completado' || patient.status === 'Validado') && (
                               expandedPatients.has(patient.id) ? 
                                 <ChevronDown className="h-4 w-4" /> : 
                                 <ChevronRight className="h-4 w-4" />
@@ -652,7 +716,10 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                         <TableCell>
                           <Badge 
                             variant={getStatusVariant(patient.status)}
-                            className="flex items-center gap-1 w-fit"
+                            className={cn(
+                              "flex items-center gap-1 w-fit",
+                              patient.status === 'Validado' && "bg-green-100 text-green-800 border-green-300"
+                            )}
                           >
                             {getStatusIcon(patient.status)}
                             {patient.status}
@@ -662,7 +729,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                           <TableCell>
                             <Select
                               value={patient.status}
-                              onValueChange={(value: 'Pendientes' | 'En progreso' | 'Completado') => 
+                              onValueChange={(value: 'Pendientes' | 'En progreso' | 'Completado' | 'Validado') => 
                                 updatePatientStatus(patient.id, value)
                               }
                             >
@@ -673,6 +740,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                                 <SelectItem value="Pendientes">Pendientes</SelectItem>
                                 <SelectItem value="En progreso">En progreso</SelectItem>
                                 <SelectItem value="Completado">Completado</SelectItem>
+                                <SelectItem value="Validado">Validado</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
@@ -695,7 +763,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                       </TableRow>
                       
                       {/* Collapsible Content */}
-                      {patient.status === 'Completado' && expandedPatients.has(patient.id) && (
+                      {(patient.status === 'Completado' || patient.status === 'Validado') && expandedPatients.has(patient.id) && (
                         <TableRow>
                           <TableCell colSpan={canEditStatus ? 7 : 5} className="p-0">
                             <div className="p-4 bg-muted/30">
@@ -705,15 +773,35 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                                     <h4 className="font-semibold flex items-center gap-2">
                                       <FileText className="h-4 w-4" />
                                       Informe del Paciente
+                                      {patient.status === 'Validado' && (
+                                        <Badge className="bg-green-100 text-green-800 border-green-300">
+                                          <Shield className="h-3 w-3 mr-1" />
+                                          Validado
+                                        </Badge>
+                                      )}
                                     </h4>
-                                    <Button
-                                      onClick={() => generatePDF(patient)}
-                                      size="sm"
-                                      className="flex items-center gap-2"
-                                    >
-                                      <Download className="h-4 w-4" />
-                                      Descargar PDF
-                                    </Button>
+                                    <div className="flex items-center gap-2">
+                                      {patient.status === 'Completado' && canEditStatus && (
+                                        <Button
+                                          onClick={() => validatePatientReport(patient)}
+                                          size="sm"
+                                          variant="default"
+                                          className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                                        >
+                                          <Shield className="h-4 w-4" />
+                                          Validar Informe
+                                        </Button>
+                                      )}
+                                      <Button
+                                        onClick={() => generatePDF(patient)}
+                                        size="sm"
+                                        variant="outline"
+                                        className="flex items-center gap-2"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                        Descargar PDF
+                                      </Button>
+                                    </div>
                                   </div>
                                   
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
