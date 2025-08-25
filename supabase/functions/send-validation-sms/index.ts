@@ -49,13 +49,13 @@ serve(async (req) => {
       );
     }
 
-    // Get Twilio credentials
-    const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
-    const twilioAuthToken = Deno.env.get('TWILIO_AUTH_TOKEN');
-    const twilioMessagingServiceSid = Deno.env.get('TWILIO_MESSAGING_SERVICE_SID');
+    // Twilio config
+    const twilioSMSURL = Deno.env.get('TWILIO_SMS_URL'); // e.g. https://api.twilio.com/2010-04-01/Accounts/AC.../Messages.json
+    const twilioAuthToken = Deno.env.get('TWILIO_PASSWORD_SMS'); // Auth Token
+    const accountSid = "AC90b1898da1a5d34101f0807f2d5a7b8f"; // tu Account SID
 
-    if (!twilioAccountSid || !twilioAuthToken || !twilioMessagingServiceSid) {
-      console.error('Missing Twilio credentials');
+    if (!twilioSMSURL || !twilioAuthToken) {
+      console.error('Missing Twilio configuration (TWILIO_SMS_URL or TWILIO_PASSWORD_SMS)');
       return new Response(
         JSON.stringify({ error: 'Configuración de Twilio incompleta' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -87,31 +87,44 @@ Equipo Médico`;
     const cleanPhoneNumber = patient.phone.replace(/\s+/g, '');
 
     console.log('Sending validation SMS to:', cleanPhoneNumber);
-    console.log('Message length:', message.length);
+    console.log('Message content:', message);
 
     // Send SMS via Twilio
-    const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
-    const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
-
-    const twilioResponse = await fetch(twilioUrl, {
+    const twilioResp = await fetch(twilioSMSURL, {
       method: 'POST',
       headers: {
-        'Authorization': `Basic ${twilioAuth}`,
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'Authorization': 'Basic ' + btoa(`${accountSid}:${twilioAuthToken}`)
       },
       body: new URLSearchParams({
         To: cleanPhoneNumber,
-        MessagingServiceSid: twilioMessagingServiceSid,
+        MessagingServiceSid: "MG76ddbd9d37110bb6d3227ac63025b91e",
         Body: message
-      }).toString(),
+      }).toString()
     });
 
-    const twilioData = await twilioResponse.json();
+    // Read raw text first for robust logging
+    const raw = await twilioResp.text();
+    let twilioData = null;
+    try {
+      twilioData = JSON.parse(raw);
+    } catch {
+      console.error('Twilio non-JSON response:', {
+        status: twilioResp.status,
+        statusText: twilioResp.statusText,
+        headers: Object.fromEntries(twilioResp.headers),
+        body: raw.slice(0, 500)
+      });
+      return new Response(
+        JSON.stringify({ error: `Respuesta no-JSON de Twilio (status ${twilioResp.status})` }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    console.log('Twilio response status:', twilioResponse.status);
-    console.log('Twilio response data:', JSON.stringify(twilioData, null, 2));
+    console.log('Twilio response status:', twilioResp.status, twilioData);
 
-    if (!twilioResponse.ok || twilioData.error_code) {
+    if (!twilioResp.ok) {
       console.error('Twilio error:', twilioData);
       return new Response(
         JSON.stringify({ error: 'Error enviando SMS de validación', details: twilioData }),
