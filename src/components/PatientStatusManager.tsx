@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarIcon, Filter, Users, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { CalendarIcon, Filter, Users, Clock, CheckCircle, AlertCircle, ChevronDown, ChevronRight, Download, FileText } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,12 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import PatientReportModal from './PatientReportModal';
+import jsPDF from 'jspdf';
 
 interface Patient {
   id: string;
@@ -42,8 +43,8 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [expandedPatients, setExpandedPatients] = useState<Set<string>>(new Set());
+  const [patientReports, setPatientReports] = useState<{[key: string]: any}>({});
   const { toast } = useToast();
 
   const canEditStatus = userRole === 'Owner' || userRole === 'Nurse';
@@ -193,10 +194,190 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
     }
   };
 
-  const handlePatientClick = (patient: Patient) => {
-    if (patient.status === 'Completado') {
-      setSelectedPatient(patient);
-      setIsReportModalOpen(true);
+  const togglePatientExpansion = async (patient: Patient) => {
+    if (patient.status !== 'Completado') return;
+
+    const newExpanded = new Set(expandedPatients);
+    if (newExpanded.has(patient.id)) {
+      newExpanded.delete(patient.id);
+    } else {
+      newExpanded.add(patient.id);
+      // Load patient report data if not already loaded
+      if (!patientReports[patient.id]) {
+        await loadPatientReport(patient);
+      }
+    }
+    setExpandedPatients(newExpanded);
+  };
+
+  const loadPatientReport = async (patient: Patient) => {
+    try {
+      // Get patient responses
+      const { data: responseData } = await supabase
+        .rpc('get_patient_responses_by_token', { patient_token: patient.token });
+      
+      // Get conversations
+      const { data: conversationData } = await supabase
+        .rpc('get_patient_conversations_by_token', { patient_token: patient.token });
+      
+      // Get recommendations
+      const { data: recommendationData } = await supabase
+        .rpc('get_patient_recommendations_by_token', { patient_token: patient.token });
+      
+      // Get consents
+      const { data: consentData } = await supabase
+        .rpc('get_patient_consents_by_token', { patient_token: patient.token });
+
+      setPatientReports(prev => ({
+        ...prev,
+        [patient.id]: {
+          responses: responseData?.[0] || null,
+          conversations: conversationData || [],
+          recommendations: recommendationData || [],
+          consents: consentData || []
+        }
+      }));
+    } catch (error) {
+      console.error('Error loading patient report:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el informe del paciente",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const generatePDF = async (patient: Patient) => {
+    const report = patientReports[patient.id];
+    if (!report) {
+      toast({
+        title: "Error",
+        description: "No se pudo cargar la información del paciente",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const pdf = new jsPDF();
+      const pageWidth = pdf.internal.pageSize.width;
+      const margin = 20;
+      let yPosition = 30;
+
+      // Helper function to add text with word wrap
+      const addText = (text: string, fontSize = 10, isBold = false) => {
+        pdf.setFontSize(fontSize);
+        pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
+        const lines = pdf.splitTextToSize(text, pageWidth - 2 * margin);
+        pdf.text(lines, margin, yPosition);
+        yPosition += lines.length * (fontSize * 0.5) + 5;
+        
+        // Check if we need a new page
+        if (yPosition > pdf.internal.pageSize.height - 30) {
+          pdf.addPage();
+          yPosition = 30;
+        }
+      };
+
+      // Title
+      addText(`INFORME PREANESTÉSICO - ${patient.name}`, 16, true);
+      yPosition += 10;
+
+      // Patient Information
+      addText('INFORMACIÓN DEL PACIENTE', 14, true);
+      addText(`Nombre: ${patient.name}`);
+      addText(`DNI: ${patient.dni}`);
+      addText(`Email: ${patient.email}`);
+      if (patient.phone) addText(`Teléfono: ${patient.phone}`);
+      if (patient.birth_date) addText(`Fecha de Nacimiento: ${format(new Date(patient.birth_date), "PPP", { locale: es })}`);
+      addText(`Procedimiento: ${patient.procedure || 'No especificado'}`);
+      if (patient.procedure_date) addText(`Fecha de Cirugía: ${format(new Date(patient.procedure_date), "PPP", { locale: es })}`);
+      yPosition += 10;
+
+      // Medical Information
+      if (report.responses) {
+        addText('INFORMACIÓN MÉDICA', 14, true);
+        
+        // Emergency Contact
+        if (report.responses.emergency_contact_name) {
+          addText('Contacto de Emergencia:', 12, true);
+          addText(`Nombre: ${report.responses.emergency_contact_name}`);
+          if (report.responses.emergency_contact_phone) addText(`Teléfono: ${report.responses.emergency_contact_phone}`);
+          if (report.responses.emergency_contact_relationship) addText(`Relación: ${report.responses.emergency_contact_relationship}`);
+          yPosition += 5;
+        }
+
+        // Medical History
+        addText('Historia Médica:', 12, true);
+        addText(`Alergias: ${report.responses.has_allergies ? `Sí - ${report.responses.allergies || 'No especificadas'}` : 'No'}`);
+        if (report.responses.current_medications) addText(`Medicamentos actuales: ${report.responses.current_medications}`);
+        if (report.responses.medical_history) addText(`Historia médica: ${report.responses.medical_history}`);
+        if (report.responses.previous_surgeries) addText(`Cirugías previas: ${report.responses.previous_surgeries}`);
+        if (report.responses.family_history) addText(`Historia familiar: ${report.responses.family_history}`);
+        yPosition += 5;
+
+        // Lifestyle
+        addText('Estilo de Vida:', 12, true);
+        addText(`Fumador: ${report.responses.smoking ? 'Sí' : 'No'}`);
+        addText(`Alcohol: ${report.responses.alcohol ? 'Sí' : 'No'}`);
+        if (report.responses.exercise) addText(`Ejercicio: ${report.responses.exercise}`);
+        if (report.responses.diet) addText(`Dieta: ${report.responses.diet}`);
+        if (report.responses.sleep_hours) addText(`Horas de sueño: ${report.responses.sleep_hours} horas`);
+        if (report.responses.stress_level !== undefined) addText(`Nivel de estrés: ${report.responses.stress_level}/10`);
+        if (report.responses.additional_concerns) addText(`Preocupaciones adicionales: ${report.responses.additional_concerns}`);
+        yPosition += 10;
+      }
+
+      // Recommendations
+      if (report.recommendations && report.recommendations.length > 0) {
+        addText('RECOMENDACIONES MÉDICAS', 14, true);
+        report.recommendations.forEach((rec: any, index: number) => {
+          addText(`${index + 1}. ${rec.title} (${rec.category} - ${rec.priority})`, 11, true);
+          addText(rec.description);
+          yPosition += 3;
+        });
+        yPosition += 10;
+      }
+
+      // Conversations
+      if (report.conversations && report.conversations.length > 0) {
+        addText('CONVERSACIÓN CON IA', 14, true);
+        report.conversations.forEach((conv: any, index: number) => {
+          const role = conv.role === 'user' ? 'Paciente' : 'IA Médica';
+          addText(`${role}: ${conv.content}`, 10);
+          yPosition += 3;
+        });
+        yPosition += 10;
+      }
+
+      // Consents
+      if (report.consents && report.consents.length > 0) {
+        addText('CONSENTIMIENTOS', 14, true);
+        report.consents.forEach((consent: any) => {
+          const status = consent.accepted ? 'Aceptado' : 'Rechazado';
+          const date = consent.accepted_at ? format(new Date(consent.accepted_at), "PPp", { locale: es }) : '';
+          addText(`${consent.consent_type}: ${status} ${date ? `- ${date}` : ''}`);
+        });
+      }
+
+      // Footer
+      pdf.setFontSize(8);
+      pdf.text(`Generado el ${format(new Date(), "PPp", { locale: es })}`, margin, pdf.internal.pageSize.height - 10);
+
+      // Save PDF
+      pdf.save(`informe_${patient.name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+
+      toast({
+        title: "PDF Generado",
+        description: "El informe se ha descargado exitosamente",
+      });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo generar el PDF",
+        variant: "destructive",
+      });
     }
   };
 
@@ -438,70 +619,173 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
                 </TableHeader>
                 <TableBody>
                   {filteredPatients.map((patient) => (
-                    <TableRow 
-                      key={patient.id}
-                      className={patient.status === 'Completado' ? 'cursor-pointer hover:bg-muted/50' : ''}
-                      onClick={() => handlePatientClick(patient)}
-                    >
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{patient.name}</div>
-                          <div className="text-sm text-muted-foreground">{patient.email}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{patient.dni}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">
-                          {patient.procedure || 'No especificado'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {patient.procedure_date 
-                          ? format(new Date(patient.procedure_date), "PPP", { locale: es })
-                          : '-'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={getStatusVariant(patient.status)}
-                          className="flex items-center gap-1 w-fit"
-                        >
-                          {getStatusIcon(patient.status)}
-                          {patient.status}
-                        </Badge>
-                      </TableCell>
-                      {canEditStatus && (
+                    <React.Fragment key={patient.id}>
+                      <TableRow 
+                        className={patient.status === 'Completado' ? 'cursor-pointer hover:bg-muted/50' : ''}
+                        onClick={() => togglePatientExpansion(patient)}
+                      >
                         <TableCell>
-                          <Select
-                            value={patient.status}
-                            onValueChange={(value: 'Pendientes' | 'En progreso' | 'Completado') => 
-                              updatePatientStatus(patient.id, value)
-                            }
-                          >
-                            <SelectTrigger className="w-36">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Pendientes">Pendientes</SelectItem>
-                              <SelectItem value="En progreso">En progreso</SelectItem>
-                              <SelectItem value="Completado">Completado</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <div className="flex items-center gap-2">
+                            {patient.status === 'Completado' && (
+                              expandedPatients.has(patient.id) ? 
+                                <ChevronDown className="h-4 w-4" /> : 
+                                <ChevronRight className="h-4 w-4" />
+                            )}
+                            <div>
+                              <div className="font-medium">{patient.name}</div>
+                              <div className="text-sm text-muted-foreground">{patient.email}</div>
+                            </div>
+                          </div>
                         </TableCell>
-                      )}
-                      {canEditStatus && (
+                        <TableCell>{patient.dni}</TableCell>
                         <TableCell>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => sendSMSManually(patient)}
-                            disabled={!patient.procedure_date}
-                          >
-                            Enviar SMS
-                          </Button>
+                          <Badge variant="outline">
+                            {patient.procedure || 'No especificado'}
+                          </Badge>
                         </TableCell>
+                        <TableCell>
+                          {patient.procedure_date 
+                            ? format(new Date(patient.procedure_date), "PPP", { locale: es })
+                            : '-'
+                          }
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={getStatusVariant(patient.status)}
+                            className="flex items-center gap-1 w-fit"
+                          >
+                            {getStatusIcon(patient.status)}
+                            {patient.status}
+                          </Badge>
+                        </TableCell>
+                        {canEditStatus && (
+                          <TableCell>
+                            <Select
+                              value={patient.status}
+                              onValueChange={(value: 'Pendientes' | 'En progreso' | 'Completado') => 
+                                updatePatientStatus(patient.id, value)
+                              }
+                            >
+                              <SelectTrigger className="w-36">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Pendientes">Pendientes</SelectItem>
+                                <SelectItem value="En progreso">En progreso</SelectItem>
+                                <SelectItem value="Completado">Completado</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        )}
+                        {canEditStatus && (
+                          <TableCell>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                sendSMSManually(patient);
+                              }}
+                              disabled={!patient.procedure_date}
+                            >
+                              Enviar SMS
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                      
+                      {/* Collapsible Content */}
+                      {patient.status === 'Completado' && expandedPatients.has(patient.id) && (
+                        <TableRow>
+                          <TableCell colSpan={canEditStatus ? 7 : 5} className="p-0">
+                            <div className="p-4 bg-muted/30">
+                              {patientReports[patient.id] ? (
+                                <div className="space-y-4">
+                                  <div className="flex justify-between items-center">
+                                    <h4 className="font-semibold flex items-center gap-2">
+                                      <FileText className="h-4 w-4" />
+                                      Informe del Paciente
+                                    </h4>
+                                    <Button
+                                      onClick={() => generatePDF(patient)}
+                                      size="sm"
+                                      className="flex items-center gap-2"
+                                    >
+                                      <Download className="h-4 w-4" />
+                                      Descargar PDF
+                                    </Button>
+                                  </div>
+                                  
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                    {/* Medical Info */}
+                                    {patientReports[patient.id].responses && (
+                                      <div className="space-y-2">
+                                        <h5 className="font-medium">Información Médica</h5>
+                                        <div className="space-y-1 text-muted-foreground">
+                                          <p>Alergias: {patientReports[patient.id].responses.has_allergies ? 'Sí' : 'No'}</p>
+                                          <p>Fumador: {patientReports[patient.id].responses.smoking ? 'Sí' : 'No'}</p>
+                                          <p>Alcohol: {patientReports[patient.id].responses.alcohol ? 'Sí' : 'No'}</p>
+                                          {patientReports[patient.id].responses.sleep_hours && (
+                                            <p>Horas de sueño: {patientReports[patient.id].responses.sleep_hours}h</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Recommendations */}
+                                    {patientReports[patient.id].recommendations.length > 0 && (
+                                      <div className="space-y-2">
+                                        <h5 className="font-medium">Recomendaciones ({patientReports[patient.id].recommendations.length})</h5>
+                                        <div className="space-y-1 text-muted-foreground">
+                                          {patientReports[patient.id].recommendations.slice(0, 3).map((rec: any, idx: number) => (
+                                            <p key={idx} className="text-xs">• {rec.title}</p>
+                                          ))}
+                                          {patientReports[patient.id].recommendations.length > 3 && (
+                                            <p className="text-xs">+ {patientReports[patient.id].recommendations.length - 3} más...</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Conversation Summary */}
+                                    {patientReports[patient.id].conversations.length > 0 && (
+                                      <div className="space-y-2">
+                                        <h5 className="font-medium">Conversación con IA</h5>
+                                        <p className="text-muted-foreground text-xs">
+                                          {patientReports[patient.id].conversations.length} mensajes intercambiados
+                                        </p>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Consents */}
+                                    {patientReports[patient.id].consents.length > 0 && (
+                                      <div className="space-y-2">
+                                        <h5 className="font-medium">Consentimientos</h5>
+                                        <div className="space-y-1">
+                                          {patientReports[patient.id].consents.map((consent: any, idx: number) => (
+                                            <div key={idx} className="flex items-center gap-2">
+                                              <Badge variant={consent.accepted ? "default" : "destructive"} className="text-xs">
+                                                {consent.accepted ? 'Aceptado' : 'Rechazado'}
+                                              </Badge>
+                                              <span className="text-xs text-muted-foreground">{consent.consent_type}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="flex items-center justify-center py-4">
+                                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                                  <span className="ml-2 text-sm text-muted-foreground">Cargando informe...</span>
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TableRow>
+                    </React.Fragment>
                   ))}
                 </TableBody>
               </Table>
@@ -509,13 +793,6 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
           )}
         </CardContent>
       </Card>
-
-      {/* Patient Report Modal */}
-      <PatientReportModal
-        patient={selectedPatient}
-        open={isReportModalOpen}
-        onOpenChange={setIsReportModalOpen}
-      />
     </div>
   );
 };
