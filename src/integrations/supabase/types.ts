@@ -217,6 +217,8 @@ export type Database = {
           status: string | null
           token: string
           updated_at: string | null
+          validated_at: string | null
+          validated_by: string | null
         }
         Insert: {
           birth_date?: string | null
@@ -232,6 +234,8 @@ export type Database = {
           status?: string | null
           token: string
           updated_at?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
         }
         Update: {
           birth_date?: string | null
@@ -247,6 +251,8 @@ export type Database = {
           status?: string | null
           token?: string
           updated_at?: string | null
+          validated_at?: string | null
+          validated_by?: string | null
         }
         Relationships: []
       }
@@ -419,6 +425,10 @@ export type Database = {
           new_status?: string
           patient_token: string
         }
+        Returns: boolean
+      }
+      validate_patient_report: {
+        Args: { patient_id: string; validator_user_id: string }
         Returns: boolean
       }
       verify_dni_and_security_code: {
