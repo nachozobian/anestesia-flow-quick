@@ -326,7 +326,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
 
   const generatePDF = async (patient: Patient) => {
     const report = patientReports[patient.id];
-    console.log(report);
+    
     if (!report) {
       toast({
         title: "Error",
@@ -429,8 +429,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       }
 
       // Consents
-      if(true){
-      //if (report.consents && report.consents.length > 0) {
+      if (report.consents && report.consents.length > 0) {
         const preAnestheticConsent = report.consents.find((c: any) => c.consent_type === 'pre_anesthetic');
         
         if (preAnestheticConsent) {
