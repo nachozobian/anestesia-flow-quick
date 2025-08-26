@@ -429,12 +429,150 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
 
       // Consents
       if (report.consents && report.consents.length > 0) {
-        addText('CONSENTIMIENTOS', 14, true);
-        report.consents.forEach((consent: any) => {
-          const status = consent.accepted ? 'Aceptado' : 'Rechazado';
-          const date = consent.accepted_at ? format(new Date(consent.accepted_at), "PPp", { locale: es }) : '';
-          addText(`${consent.consent_type}: ${status} ${date ? `- ${date}` : ''}`);
-        });
+        const preAnestheticConsent = report.consents.find((c: any) => c.consent_type === 'pre_anesthetic');
+        
+        if (preAnestheticConsent) {
+          // Add new page for consent
+          pdf.addPage();
+          yPosition = 30;
+          
+          addText('CONSENTIMIENTO INFORMADO PARA ANESTESIA', 16, true);
+          yPosition += 10;
+          
+          // Patient info section
+          addText(`Paciente: ${patient.name}`, 12, true);
+          addText(`DNI: ${patient.dni}`);
+          addText(`Procedimiento: ${patient.procedure || 'No especificado'}`);
+          if (patient.procedure_date) {
+            addText(`Fecha del Procedimiento: ${format(new Date(patient.procedure_date), "PPP", { locale: es })}`);
+          }
+          yPosition += 10;
+          
+          // Consent content
+          const consentContent = `
+Estimado/a ${patient.name},
+
+Este documento tiene como objetivo informarle sobre los riesgos, beneficios y alternativas relacionados con la anestesia que recibirá durante su procedimiento quirúrgico.
+
+INFORMACIÓN SOBRE LA ANESTESIA:
+La anestesia es un conjunto de técnicas que permiten realizar procedimientos quirúrgicos sin dolor, utilizando medicamentos que bloquean la sensación de dolor y, en algunos casos, producen pérdida de consciencia.
+
+TIPOS DE ANESTESIA:
+1. Anestesia General: Pérdida completa de la consciencia
+2. Anestesia Regional: Bloqueo de una región específica del cuerpo
+3. Anestesia Local: Bloqueo de un área pequeña específica
+4. Sedación: Relajación y reducción de la ansiedad
+
+RIESGOS Y COMPLICACIONES:
+Como cualquier procedimiento médico, la anestesia conlleva ciertos riesgos, que pueden incluir:
+
+RIESGOS COMUNES (frecuencia: 1 en 100 a 1 en 1000):
+- Náuseas y vómitos postoperatorios
+- Dolor de garganta
+- Somnolencia prolongada
+- Temblores
+- Dolor de cabeza
+
+RIESGOS POCO FRECUENTES (frecuencia: 1 en 1000 a 1 en 10000):
+- Reacciones alérgicas a medicamentos
+- Problemas respiratorios temporales
+- Alteraciones de la presión arterial
+- Infección en el sitio de punción (anestesia regional)
+
+RIESGOS RAROS (frecuencia: menor a 1 en 10000):
+- Reacciones alérgicas graves
+- Complicaciones cardiovasculares graves
+- Daño neurológico permanente
+- Despertar durante la anestesia general
+- Muerte relacionada con la anestesia
+
+FACTORES QUE PUEDEN AUMENTAR LOS RIESGOS:
+- Enfermedades cardíacas o pulmonares preexistentes
+- Diabetes mal controlada
+- Obesidad
+- Consumo de alcohol o drogas
+- Reacciones previas a anestésicos
+- Ciertos medicamentos
+
+PREPARACIÓN PRE-ANESTÉSICA:
+- Seguir las instrucciones de ayuno
+- Informar sobre todos los medicamentos que toma
+- Informar sobre alergias conocidas
+- Seguir las recomendaciones médicas específicas
+
+CUIDADOS POST-ANESTÉSICOS:
+- Será monitoreado/a hasta su recuperación completa
+- Puede experimentar efectos residuales temporales
+- Siga las instrucciones del equipo médico
+- Reporte cualquier síntoma inusual
+
+ALTERNATIVAS:
+Las alternativas a la anestesia son limitadas y dependen del tipo de procedimiento. En algunos casos, pueden considerarse técnicas de anestesia local o sedación mínima.
+
+CONSENTIMIENTO:
+He leído y comprendido la información proporcionada sobre la anestesia. He tenido la oportunidad de hacer preguntas, las cuales han sido respondidas satisfactoriamente. Entiendo los riesgos, beneficios y alternativas de la anestesia.
+
+Autorizo al equipo médico a administrar la anestesia que consideren más apropiada para mi procedimiento.
+
+Comprendo que ningún procedimiento médico está libre de riesgos y que no se me puede garantizar un resultado específico.`;
+
+          addText(consentContent, 9);
+          yPosition += 10;
+          
+          // Consent status
+          const status = preAnestheticConsent.accepted ? 'ACEPTADO' : 'PENDIENTE';
+          const acceptanceDate = preAnestheticConsent.accepted_at ? 
+            format(new Date(preAnestheticConsent.accepted_at), "PPp", { locale: es }) : '';
+          
+          addText(`Estado del Consentimiento: ${status}`, 12, true);
+          if (acceptanceDate) {
+            addText(`Fecha de Aceptación: ${acceptanceDate}`, 10);
+          }
+          yPosition += 15;
+          
+          // Signature section
+          addText('FIRMA DEL PACIENTE:', 12, true);
+          yPosition += 5;
+          
+          if (preAnestheticConsent.signature_data) {
+            try {
+              // Add signature image to PDF
+              const signatureImg = preAnestheticConsent.signature_data;
+              const imgWidth = 80;
+              const imgHeight = 40;
+              
+              pdf.addImage(signatureImg, 'PNG', margin, yPosition, imgWidth, imgHeight);
+              yPosition += imgHeight + 10;
+              
+              addText(`Firmado digitalmente el ${acceptanceDate}`, 8);
+            } catch (error) {
+              console.error('Error adding signature to PDF:', error);
+              // Draw signature box if image fails
+              pdf.rect(margin, yPosition, 80, 40);
+              pdf.text('Firma Digital Registrada', margin + 5, yPosition + 20);
+              yPosition += 50;
+            }
+          } else {
+            // Draw empty signature box
+            pdf.rect(margin, yPosition, 80, 40);
+            pdf.text('Firma:', margin, yPosition - 3);
+            yPosition += 50;
+            
+            addText('Fecha: _______________', 10);
+            yPosition += 10;
+          }
+        }
+        
+        // Summary of other consents
+        if (report.consents.length > 1 || !preAnestheticConsent) {
+          yPosition += 10;
+          addText('RESUMEN DE CONSENTIMIENTOS', 12, true);
+          report.consents.forEach((consent: any) => {
+            const status = consent.accepted ? 'Aceptado' : 'Rechazado';
+            const date = consent.accepted_at ? format(new Date(consent.accepted_at), "PPp", { locale: es }) : '';
+            addText(`${consent.consent_type}: ${status} ${date ? `- ${date}` : ''}`, 9);
+          });
+        }
       }
 
       // Footer
