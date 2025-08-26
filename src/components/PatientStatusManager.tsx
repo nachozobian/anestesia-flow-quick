@@ -292,7 +292,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       // Get patient responses
       const { data: responseData } = await supabase
         .rpc('get_patient_responses_by_token', { patient_token: patient.token });
-      console.log(responseData);
+      
       // Get conversations
       const { data: conversationData } = await supabase
         .rpc('get_patient_conversations_by_token', { patient_token: patient.token });
@@ -326,7 +326,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
 
   const generatePDF = async (patient: Patient) => {
     const report = patientReports[patient.id];
-    console.log(responseData);
+    console.log(report);
     if (!report) {
       toast({
         title: "Error",
@@ -429,7 +429,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       }
 
       // Consents
-      if (true){
+      if(true){
       //if (report.consents && report.consents.length > 0) {
         const preAnestheticConsent = report.consents.find((c: any) => c.consent_type === 'pre_anesthetic');
         
