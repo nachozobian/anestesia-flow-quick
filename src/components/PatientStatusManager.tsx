@@ -429,7 +429,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       }
 
       // Consents
-      if (true) {
+      if (true){
       //if (report.consents && report.consents.length > 0) {
         const preAnestheticConsent = report.consents.find((c: any) => c.consent_type === 'pre_anesthetic');
         
