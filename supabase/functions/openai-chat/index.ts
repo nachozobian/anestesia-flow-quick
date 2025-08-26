@@ -14,24 +14,33 @@ serve(async (req) => {
   }
 
   try {
-    const { message, patientData, conversationHistory = [] } = await req.json();
+    const { message, patientData, conversationHistory = [], patientToken } = await req.json();
     
     if (!message) {
       throw new Error('Message is required');
     }
 
-    // Initialize Supabase client
+    // Initialize Supabase client with service role key for database operations
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get patient ID from token for secure operations
+    let actualPatientId = patientData?.id;
+    if (patientToken) {
+      const { data: tokenResult } = await supabase.rpc('get_patient_id_from_token', { 
+        patient_token: patientToken 
+      });
+      actualPatientId = tokenResult;
+    }
 
     // Get patient medical responses for additional context
     let patientResponses = null;
-    if (patientData?.id) {
+    if (actualPatientId) {
       const { data } = await supabase
         .from('patient_responses')
         .select('*')
-        .eq('patient_id', patientData.id)
+        .eq('patient_id', actualPatientId)
         .single();
       
       patientResponses = data;
@@ -241,10 +250,10 @@ IMPORTANTE: Sigue la estructura paso a paso, haz UNA PREGUNTA A LA VEZ de forma 
         try {
           const recommendationsData = JSON.parse(toolCall.function.arguments);
           
-          // Save recommendations to database
-          if (patientData?.id && recommendationsData.recommendations) {
+          // Save recommendations to database using the actual patient ID
+          if (actualPatientId && recommendationsData.recommendations) {
             const recommendationsToInsert = recommendationsData.recommendations.map((rec: any) => ({
-              patient_id: patientData.id,
+              patient_id: actualPatientId,
               title: rec.title,
               description: rec.description,
               category: rec.category,
@@ -266,7 +275,8 @@ IMPORTANTE: Sigue la estructura paso a paso, haz UNA PREGUNTA A LA VEZ de forma 
             JSON.stringify({ 
               response: "He generado las recomendaciones médicas basadas en nuestra evaluación. Puede revisarlas en la siguiente sección. ¿Tiene alguna pregunta adicional sobre el procedimiento o las recomendaciones?",
               success: true,
-              recommendations_generated: true
+              recommendations_generated: true,
+              recommendations: recommendationsData.recommendations || []
             }),
             { 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

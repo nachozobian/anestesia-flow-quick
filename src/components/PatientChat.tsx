@@ -160,7 +160,8 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
         body: {
           message: input.trim(),
           patientData: patientData,
-          conversationHistory: conversationHistory
+          conversationHistory: conversationHistory,
+          patientToken: patientId // Pass the token for secure operations
         }
       });
 
@@ -227,6 +228,63 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
       return;
     }
     onComplete();
+  };
+
+  const forceGenerateRecommendations = async () => {
+    setLoading(true);
+    try {
+      // Get patient data for context using secure function
+      const { data: patientResult } = await supabase
+        .rpc('get_patient_by_token', { patient_token: patientId });
+      
+      const patientData = patientResult?.[0];
+
+      // Get conversation history for context
+      const conversationHistory = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content
+      }));
+
+      // Force generation of recommendations
+      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('openai-chat', {
+        body: {
+          message: "Basándome en toda la información recopilada durante nuestra evaluación preanestésica, por favor genera recomendaciones médicas específicas para este paciente.",
+          patientData: patientData,
+          conversationHistory: conversationHistory,
+          patientToken: patientId
+        }
+      });
+
+      if (aiError) {
+        throw aiError;
+      }
+
+      // Check if recommendations were generated
+      if (aiResponse.recommendations_generated) {
+        setRecommendationsGenerated(true);
+        setCanComplete(true);
+        toast({
+          title: "Recomendaciones Generadas",
+          description: "Se han generado recomendaciones médicas específicas basadas en la información disponible.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "No se pudieron generar recomendaciones en este momento. Intente nuevamente.",
+          variant: "destructive"
+        });
+      }
+
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      toast({
+        title: "Error",
+        description: "Error al generar recomendaciones. Intente nuevamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (initialLoading) {
@@ -322,23 +380,42 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
             <p className="text-xs text-muted-foreground">
               Presione Enter para enviar • Shift+Enter para nueva línea
             </p>
-            <Button 
-              variant={canComplete ? "default" : "outline"}
-              size="sm" 
-              onClick={handleCompleteConsultation}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Procesando...
-                </>
-              ) : canComplete ? (
-                'Finalizar Consulta ✓'
-              ) : (
-                'Finalizar Consulta (Esperando IA)'
+            <div className="flex space-x-2">
+              {!recommendationsGenerated && (
+                <Button 
+                  variant="secondary"
+                  size="sm" 
+                  onClick={forceGenerateRecommendations}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Generando...
+                    </>
+                  ) : (
+                    'Generar Recomendaciones'
+                  )}
+                </Button>
               )}
-            </Button>
+              <Button 
+                variant={canComplete ? "default" : "outline"}
+                size="sm" 
+                onClick={handleCompleteConsultation}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Procesando...
+                  </>
+                ) : canComplete ? (
+                  'Finalizar Consulta ✓'
+                ) : (
+                  'Finalizar Consulta (Esperando IA)'
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       </CardContent>
