@@ -24,6 +24,8 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [canComplete, setCanComplete] = useState(false);
+  const [recommendationsGenerated, setRecommendationsGenerated] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
@@ -32,6 +34,7 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
     loadConversation();
     // Add initial AI greeting if no messages exist
     initializeChat();
+    checkRecommendationsStatus();
   }, [patientId]);
 
   useEffect(() => {
@@ -98,6 +101,20 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
     }
   };
 
+  const checkRecommendationsStatus = async () => {
+    try {
+      const { data: recommendations } = await supabase
+        .rpc('get_patient_recommendations_by_token', { patient_token: patientId });
+      
+      if (recommendations && recommendations.length > 0) {
+        setRecommendationsGenerated(true);
+        setCanComplete(true);
+      }
+    } catch (error) {
+      console.error('Error checking recommendations:', error);
+    }
+  };
+
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -153,10 +170,11 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
 
       // Check if recommendations were generated
       if (aiResponse.recommendations_generated) {
-        // Show success message and maybe trigger navigation to recommendations
+        setRecommendationsGenerated(true);
+        setCanComplete(true);
         toast({
-          title: "Recomendaciones Generadas",
-          description: "El asistente ha generado recomendaciones médicas específicas para usted.",
+          title: "Consulta Completada",
+          description: "El asistente ha generado recomendaciones médicas específicas para usted. Ya puede finalizar la consulta.",
         });
       }
 
@@ -200,6 +218,14 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
   };
 
   const handleCompleteConsultation = () => {
+    if (!canComplete) {
+      toast({
+        title: "Consulta incompleta",
+        description: "La inteligencia artificial aún no ha completado su evaluación. Por favor, continúe la conversación hasta que se generen las recomendaciones.",
+        variant: "destructive"
+      });
+      return;
+    }
     onComplete();
   };
 
@@ -297,7 +323,7 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
               Presione Enter para enviar • Shift+Enter para nueva línea
             </p>
             <Button 
-              variant="outline" 
+              variant={canComplete ? "default" : "outline"}
               size="sm" 
               onClick={handleCompleteConsultation}
               disabled={loading}
@@ -305,10 +331,12 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Programando cita...
+                  Procesando...
                 </>
+              ) : canComplete ? (
+                'Finalizar Consulta ✓'
               ) : (
-                'Finalizar Consulta'
+                'Finalizar Consulta (Esperando IA)'
               )}
             </Button>
           </div>

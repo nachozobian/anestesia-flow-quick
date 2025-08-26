@@ -18,11 +18,13 @@ const InformedConsent = ({ patientId, onComplete }: InformedConsentProps) => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [hasRecommendations, setHasRecommendations] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     loadOrCreateConsent();
+    checkRecommendationsExist();
   }, [patientId]);
 
   const loadOrCreateConsent = async () => {
@@ -63,6 +65,22 @@ const InformedConsent = ({ patientId, onComplete }: InformedConsentProps) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkRecommendationsExist = async () => {
+    try {
+      const { data: recommendations } = await supabase
+        .rpc('get_patient_recommendations_by_token', { patient_token: patientId });
+      
+      if (recommendations && recommendations.length > 0) {
+        setHasRecommendations(true);
+      } else {
+        setHasRecommendations(false);
+      }
+    } catch (error) {
+      console.error('Error checking recommendations:', error);
+      setHasRecommendations(false);
     }
   };
 
@@ -243,6 +261,15 @@ Fecha: ${new Date().toLocaleDateString()}
   };
 
   const submitConsent = async () => {
+    if (!hasRecommendations) {
+      toast({
+        title: "Error",
+        description: "Debe completar la consulta con IA y generar recomendaciones antes de firmar el consentimiento.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!accepted) {
       toast({
         title: "Error",
@@ -539,13 +566,17 @@ Fecha: ${new Date().toLocaleDateString()}
             <div className="flex justify-end space-x-4">
               <Button 
                 onClick={submitConsent}
-                disabled={!accepted || submitting}
+                disabled={!accepted || submitting || !hasRecommendations}
                 className="px-8"
               >
                 {submitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Enviando...
+                  </>
+                ) : !hasRecommendations ? (
+                  <>
+                    Debe completar consulta con IA
                   </>
                 ) : (
                   <>
