@@ -179,25 +179,40 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
         if (responseError) throw responseError;
 
         // Delete existing recommendations and insert new ones
-        await supabase
+        const { error: deleteError } = await supabase
           .from('patient_recommendations')
           .delete()
           .eq('patient_id', patient.id);
 
-        if (editedData.recommendations && editedData.recommendations.length > 0) {
-          const { error: recError } = await supabase
-            .from('patient_recommendations')
-            .insert(
-              editedData.recommendations.map((rec: any) => ({
-                patient_id: patient.id,
-                category: rec.category,
-                title: rec.title,
-                description: rec.description,
-                priority: rec.priority
-              }))
-            );
+        if (deleteError) {
+          console.error('Error deleting recommendations:', deleteError);
+          throw deleteError;
+        }
 
-          if (recError) throw recError;
+        if (editedData.recommendations && editedData.recommendations.length > 0) {
+          // Filter out any recommendations without required fields
+          const validRecommendations = editedData.recommendations.filter((rec: any) => 
+            rec.category?.trim() && rec.title?.trim() && rec.description?.trim()
+          );
+
+          if (validRecommendations.length > 0) {
+            const { error: recError } = await supabase
+              .from('patient_recommendations')
+              .insert(
+                validRecommendations.map((rec: any) => ({
+                  patient_id: patient.id,
+                  category: rec.category.trim(),
+                  title: rec.title.trim(),
+                  description: rec.description.trim(),
+                  priority: rec.priority || 'medium'
+                }))
+              );
+
+            if (recError) {
+              console.error('Error inserting recommendations:', recError);
+              throw recError;
+            }
+          }
         }
 
 
