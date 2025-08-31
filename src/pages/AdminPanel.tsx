@@ -269,26 +269,61 @@ const AdminPanel = () => {
       try {
         console.log(`Enviando SMS a ${newPatientIds.length} pacientes nuevos...`);
         
+        // Send patient links SMS
         const { data: smsResult, error: smsError } = await supabase.functions.invoke('send-patient-links', {
           body: { patientIds: newPatientIds }
         });
 
         if (smsError) {
-          console.error('Error sending SMS batch:', smsError);
+          console.error('Error sending patient links SMS:', smsError);
+        }
+
+        // Send appointment SMS for patients with procedure dates
+        const patientsWithDates = await supabase
+          .from('patients')
+          .select('id, name, procedure_date, procedure')
+          .in('id', newPatientIds)
+          .not('procedure_date', 'is', null);
+
+        if (patientsWithDates.data && patientsWithDates.data.length > 0) {
+          console.log(`Enviando SMS de citas a ${patientsWithDates.data.length} pacientes con fechas programadas...`);
+          
+          for (const patient of patientsWithDates.data) {
+            try {
+              const { error: appointmentSmsError } = await supabase.functions.invoke('send-appointment-sms', {
+                body: {
+                  patientId: patient.id,
+                  appointmentDate: patient.procedure_date,
+                  procedure: patient.procedure || 'Procedimiento programado'
+                }
+              });
+
+              if (appointmentSmsError) {
+                console.error(`Error sending appointment SMS to patient ${patient.name}:`, appointmentSmsError);
+              }
+            } catch (error) {
+              console.error(`Error calling appointment SMS for patient ${patient.name}:`, error);
+            }
+          }
+        }
+
+        // Show completion message
+        if (smsError) {
           toast({
             title: "Pacientes guardados",
-            description: `Se guardaron ${processedPatients.length} pacientes, pero hubo errores enviando SMS.`,
+            description: `Se guardaron ${processedPatients.length} pacientes, pero hubo errores enviando algunos SMS.`,
             variant: "destructive",
           });
         } else {
           const { summary } = smsResult;
+          const appointmentCount = patientsWithDates.data?.length || 0;
           toast({
             title: "¡Proceso completado!",
-            description: `${processedPatients.length} pacientes guardados. SMS enviados: ${summary.sent}/${summary.total}`,
+            description: `${processedPatients.length} pacientes guardados. SMS enlaces: ${summary.sent}/${summary.total}. SMS citas: ${appointmentCount}`,
           });
         }
       } catch (error) {
-        console.error('Error calling SMS function:', error);
+        console.error('Error calling SMS functions:', error);
         toast({
           title: "Pacientes guardados",
           description: `Se guardaron ${processedPatients.length} pacientes, pero no se pudieron enviar los SMS.`,
