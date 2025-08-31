@@ -16,6 +16,7 @@ import { es } from 'date-fns/locale';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
+import { EditablePatientReport } from './EditablePatientReport';
 
 interface Patient {
   id: string;
@@ -46,6 +47,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedPatients, setExpandedPatients] = useState<Set<string>>(new Set());
   const [patientReports, setPatientReports] = useState<{[key: string]: any}>({});
+  const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const { toast } = useToast();
 
   const canEditStatus = userRole === 'Owner' || userRole === 'Nurse';
@@ -324,8 +326,8 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
     }
   };
 
-  const generatePDF = async (patient: Patient) => {
-    const report = patientReports[patient.id];
+  const generatePDFWithData = async (patient: Patient, editedData?: any) => {
+    const report = editedData || patientReports[patient.id];
     
     if (!report) {
       toast({
@@ -358,58 +360,61 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       };
 
       // Title
-      addText(`INFORME PREANESTÉSICO - ${patient.name}`, 16, true);
+      const patientName = editedData ? editedData.name : patient.name;
+      addText(`INFORME PREANESTÉSICO - ${patientName}`, 16, true);
       yPosition += 10;
 
-      // Patient Information
+      // Patient Information (use edited data if available)
       addText('INFORMACIÓN DEL PACIENTE', 14, true);
-      addText(`Nombre: ${patient.name}`);
-      addText(`DNI: ${patient.dni}`);
-      addText(`Email: ${patient.email}`);
-      if (patient.phone) addText(`Teléfono: ${patient.phone}`);
-      if (patient.birth_date) addText(`Fecha de Nacimiento: ${format(new Date(patient.birth_date), "PPP", { locale: es })}`);
-      addText(`Procedimiento: ${patient.procedure || 'No especificado'}`);
-      if (patient.procedure_date) addText(`Fecha de Cirugía: ${format(new Date(patient.procedure_date), "PPP", { locale: es })}`);
+      addText(`Nombre: ${editedData?.name || patient.name}`);
+      addText(`DNI: ${editedData?.dni || patient.dni}`);
+      addText(`Email: ${editedData?.email || patient.email}`);
+      if (editedData?.phone || patient.phone) addText(`Teléfono: ${editedData?.phone || patient.phone}`);
+      if (editedData?.birth_date || patient.birth_date) addText(`Fecha de Nacimiento: ${format(new Date(editedData?.birth_date || patient.birth_date), "PPP", { locale: es })}`);
+      addText(`Procedimiento: ${editedData?.procedure || patient.procedure || 'No especificado'}`);
+      if (editedData?.procedure_date || patient.procedure_date) addText(`Fecha de Cirugía: ${format(new Date(editedData?.procedure_date || patient.procedure_date), "PPP", { locale: es })}`);
       yPosition += 10;
 
-      // Medical Information
-      if (report.responses) {
+      // Medical Information (use edited data if available)
+      const responses = editedData || report.responses;
+      if (responses) {
         addText('INFORMACIÓN MÉDICA', 14, true);
         
         // Emergency Contact
-        if (report.responses.emergency_contact_name) {
+        if (responses.emergency_contact_name) {
           addText('Contacto de Emergencia:', 12, true);
-          addText(`Nombre: ${report.responses.emergency_contact_name}`);
-          if (report.responses.emergency_contact_phone) addText(`Teléfono: ${report.responses.emergency_contact_phone}`);
-          if (report.responses.emergency_contact_relationship) addText(`Relación: ${report.responses.emergency_contact_relationship}`);
+          addText(`Nombre: ${responses.emergency_contact_name}`);
+          if (responses.emergency_contact_phone) addText(`Teléfono: ${responses.emergency_contact_phone}`);
+          if (responses.emergency_contact_relationship) addText(`Relación: ${responses.emergency_contact_relationship}`);
           yPosition += 5;
         }
 
         // Medical History
         addText('Historia Médica:', 12, true);
-        addText(`Alergias: ${report.responses.has_allergies ? `Sí - ${report.responses.allergies || 'No especificadas'}` : 'No'}`);
-        if (report.responses.current_medications) addText(`Medicamentos actuales: ${report.responses.current_medications}`);
-        if (report.responses.medical_history) addText(`Historia médica: ${report.responses.medical_history}`);
-        if (report.responses.previous_surgeries) addText(`Cirugías previas: ${report.responses.previous_surgeries}`);
-        if (report.responses.family_history) addText(`Historia familiar: ${report.responses.family_history}`);
+        addText(`Alergias: ${responses.has_allergies ? `Sí - ${responses.allergies || 'No especificadas'}` : 'No'}`);
+        if (responses.current_medications) addText(`Medicamentos actuales: ${responses.current_medications}`);
+        if (responses.medical_history) addText(`Historia médica: ${responses.medical_history}`);
+        if (responses.previous_surgeries) addText(`Cirugías previas: ${responses.previous_surgeries}`);
+        if (responses.family_history) addText(`Historia familiar: ${responses.family_history}`);
         yPosition += 5;
 
         // Lifestyle
         addText('Estilo de Vida:', 12, true);
-        addText(`Fumador: ${report.responses.smoking ? 'Sí' : 'No'}`);
-        addText(`Alcohol: ${report.responses.alcohol ? 'Sí' : 'No'}`);
-        if (report.responses.exercise) addText(`Ejercicio: ${report.responses.exercise}`);
-        if (report.responses.diet) addText(`Dieta: ${report.responses.diet}`);
-        if (report.responses.sleep_hours) addText(`Horas de sueño: ${report.responses.sleep_hours} horas`);
-        if (report.responses.stress_level !== undefined) addText(`Nivel de estrés: ${report.responses.stress_level}/10`);
-        if (report.responses.additional_concerns) addText(`Preocupaciones adicionales: ${report.responses.additional_concerns}`);
+        addText(`Fumador: ${responses.smoking ? 'Sí' : 'No'}`);
+        addText(`Alcohol: ${responses.alcohol ? 'Sí' : 'No'}`);
+        if (responses.exercise) addText(`Ejercicio: ${responses.exercise}`);
+        if (responses.diet) addText(`Dieta: ${responses.diet}`);
+        if (responses.sleep_hours) addText(`Horas de sueño: ${responses.sleep_hours} horas`);
+        if (responses.stress_level !== undefined) addText(`Nivel de estrés: ${responses.stress_level}/10`);
+        if (responses.additional_concerns) addText(`Preocupaciones adicionales: ${responses.additional_concerns}`);
         yPosition += 10;
       }
 
-      // Recommendations
-      if (report.recommendations && report.recommendations.length > 0) {
+      // Recommendations (use edited data if available)
+      const recommendations = editedData?.recommendations || report.recommendations;
+      if (recommendations && recommendations.length > 0) {
         addText('RECOMENDACIONES MÉDICAS', 14, true);
-        report.recommendations.forEach((rec: any, index: number) => {
+        recommendations.forEach((rec: any, index: number) => {
           addText(`${index + 1}. ${rec.title} (${rec.category} - ${rec.priority})`, 11, true);
           addText(rec.description);
           yPosition += 3;
@@ -417,10 +422,11 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
         yPosition += 10;
       }
 
-      // Conversations
-      if (report.conversations && report.conversations.length > 0) {
+      // Conversations (always use original data for conversations)
+      const conversations = report.conversations || [];
+      if (conversations.length > 0) {
         addText('CONVERSACIÓN CON IA', 14, true);
-        report.conversations.forEach((conv: any, index: number) => {
+        conversations.forEach((conv: any, index: number) => {
           const role = conv.role === 'user' ? 'Paciente' : 'IA Médica';
           addText(`${role}: ${conv.content}`, 10);
           yPosition += 3;
@@ -586,7 +592,8 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
       pdf.text(`Generado el ${format(new Date(), "PPp", { locale: es })}`, margin, pdf.internal.pageSize.height - 10);
 
       // Save PDF
-      pdf.save(`informe_${patient.name.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      const fileName = editedData ? editedData.name : patient.name;
+      pdf.save(`informe_${fileName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
 
       toast({
         title: "PDF Generado",
@@ -599,6 +606,17 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
         description: "No se pudo generar el PDF",
         variant: "destructive",
       });
+    }
+  };
+
+  const generatePDF = (patient: Patient) => {
+    generatePDFWithData(patient);
+  };
+
+  const handleSaveAndGeneratePDF = (editedData: any) => {
+    if (editingPatient) {
+      generatePDFWithData(editingPatient, editedData);
+      setEditingPatient(null);
     }
   };
 
@@ -994,15 +1012,15 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
                                           </AlertDialogContent>
                                         </AlertDialog>
                                       )}
-                                      <Button
-                                        onClick={() => generatePDF(patient)}
-                                        size="sm"
-                                        variant="outline"
-                                        className="flex items-center gap-2"
-                                      >
-                                        <Download className="h-4 w-4" />
-                                        Descargar PDF
-                                      </Button>
+                                       <Button
+                                         onClick={() => setEditingPatient(patient)}
+                                         size="sm"
+                                         variant="default"
+                                         className="flex items-center gap-2"
+                                       >
+                                         <Download className="h-4 w-4" />
+                                         Ver/Editar Informe
+                                       </Button>
                                     </div>
                                   </div>
                                   
@@ -1082,6 +1100,17 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
           )}
         </CardContent>
       </Card>
+
+      {/* Editable Patient Report Dialog */}
+      {editingPatient && (
+        <EditablePatientReport
+          isOpen={!!editingPatient}
+          onClose={() => setEditingPatient(null)}
+          patient={editingPatient}
+          patientReport={patientReports[editingPatient.id]}
+          onSaveAndGeneratePDF={handleSaveAndGeneratePDF}
+        />
+      )}
     </div>
   );
 };
