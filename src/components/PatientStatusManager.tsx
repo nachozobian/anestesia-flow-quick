@@ -553,7 +553,8 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
 
       // Save PDF
       const fileName = editedData ? editedData.name : patient.name;
-      pdf.save(`informe_${fileName.replace(/\s+/g, '_')}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      const sanitizedFileName = (fileName || 'paciente').replace(/\s+/g, '_');
+      pdf.save(`informe_${sanitizedFileName}_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
 
       toast({
         title: "PDF Generado",
