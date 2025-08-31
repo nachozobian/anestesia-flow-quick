@@ -209,6 +209,22 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
           console.error('Validation error:', validationError);
         }
 
+        // Send validation SMS to patient
+        try {
+          const { error: smsError } = await supabase.functions.invoke('send-validation-sms', {
+            body: {
+              patientId: patient.id,
+              validatorName: user.email || 'Equipo médico'
+            }
+          });
+
+          if (smsError) {
+            console.error('Error sending validation SMS:', smsError);
+          }
+        } catch (smsError) {
+          console.error('Error sending validation SMS:', smsError);
+        }
+
         // Generate PDF with updated data
         onSaveAndGeneratePDF(editedData);
         
@@ -220,7 +236,7 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
 
         toast({
           title: "Informe validado",
-          description: "Los cambios han sido guardados, el estado cambió a 'Validado' y el PDF está siendo generado.",
+          description: "Los cambios han sido guardados, el estado cambió a 'Validado', se envió SMS al paciente y el PDF está siendo generado.",
         });
       } catch (error) {
         console.error('Error saving patient data:', error);

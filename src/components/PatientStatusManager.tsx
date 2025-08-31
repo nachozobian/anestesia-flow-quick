@@ -904,6 +904,7 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
                                       )}
                                     </h4>
                                     <div className="flex items-center gap-2">
+                                      {patient.status === 'Completado' && canEditStatus && (
                                         <Button
                                           onClick={() => setEditingPatient(patient)}
                                           size="sm"
@@ -913,6 +914,23 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
                                           <Download className="h-4 w-4" />
                                           Ver/Editar Informe
                                         </Button>
+                                      )}
+                                      {patient.status === 'Validado' && (
+                                        <Button
+                                          onClick={() => {
+                                            const report = patientReports[patient.id];
+                                            if (report) {
+                                              generatePDFWithData(patient, report);
+                                            }
+                                          }}
+                                          size="sm"
+                                          variant="outline"
+                                          className="flex items-center gap-2"
+                                        >
+                                          <Download className="h-4 w-4" />
+                                          Descargar PDF
+                                        </Button>
+                                      )}
                                      </div>
                                   </div>
                                   
