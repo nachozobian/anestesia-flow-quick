@@ -132,7 +132,18 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
           throw new Error('Usuario no autenticado');
         }
 
-        // Update patient basic information
+        // Call the validation function FIRST to officially validate the report
+        const { data: validationResult, error: validationError } = await supabase.rpc('validate_patient_report', {
+          patient_id: patient.id,
+          validator_user_id: user.id
+        });
+
+        if (validationError || !validationResult) {
+          console.error('Validation error:', validationError);
+          throw new Error('Error validando el informe del paciente');
+        }
+
+        // Now update patient basic information (the validation function already set status to Validado)
         const { error: patientError } = await supabase
           .from('patients')
           .update({
@@ -142,10 +153,7 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
             dni: editedData.dni,
             birth_date: editedData.birth_date,
             procedure: editedData.procedure,
-            procedure_date: editedData.procedure_date,
-            status: 'Validado',
-            validated_by: user.id,
-            validated_at: new Date().toISOString()
+            procedure_date: editedData.procedure_date
           })
           .eq('id', patient.id);
 
@@ -199,15 +207,6 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
           if (recError) throw recError;
         }
 
-        // Call the validation function to officially validate the report
-        const { data: validationResult, error: validationError } = await supabase.rpc('validate_patient_report', {
-          patient_id: patient.id,
-          validator_user_id: user.id
-        });
-
-        if (validationError) {
-          console.error('Validation error:', validationError);
-        }
 
         // Send validation SMS to patient
         try {
