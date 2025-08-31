@@ -270,9 +270,6 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
     }
 
     try {
-      console.log('Starting PDF generation for patient:', patient.name);
-      console.log('Report data:', report);
-      console.log('Report keys:', Object.keys(report || {}));
       
       const pdf = new jsPDF();
       const pageWidth = pdf.internal.pageSize.width;
@@ -316,7 +313,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       yPosition += 10;
 
       // Medical Information (use edited data if available)
-      const responses = editedData || report.responses;
+      const responses = editedData || (report && report.responses);
       if (responses) {
         addText('INFORMACIÓN MÉDICA', 14, true);
         
@@ -573,9 +570,6 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
   };
 
   const generatePDF = (patient: Patient) => {
-    console.log('generatePDF called for patient:', patient.name);
-    console.log('Patient reports state:', patientReports);
-    console.log('Report for this patient:', patientReports[patient.id]);
     generatePDFWithData(patient);
   };
 
