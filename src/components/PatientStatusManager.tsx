@@ -314,25 +314,6 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
           yPosition += 5;
         }
 
-        // Medical History
-        addText('Historia Médica:', 12, true);
-        addText(`Alergias: ${responses.has_allergies ? `Sí - ${responses.allergies || 'No especificadas'}` : 'No'}`);
-        if (responses.current_medications) addText(`Medicamentos actuales: ${responses.current_medications}`);
-        if (responses.medical_history) addText(`Historia médica: ${responses.medical_history}`);
-        if (responses.previous_surgeries) addText(`Cirugías previas: ${responses.previous_surgeries}`);
-        if (responses.family_history) addText(`Historia familiar: ${responses.family_history}`);
-        yPosition += 5;
-
-        // Lifestyle
-        addText('Estilo de Vida:', 12, true);
-        addText(`Fumador: ${responses.smoking ? 'Sí' : 'No'}`);
-        addText(`Alcohol: ${responses.alcohol ? 'Sí' : 'No'}`);
-        if (responses.exercise) addText(`Ejercicio: ${responses.exercise}`);
-        if (responses.diet) addText(`Dieta: ${responses.diet}`);
-        if (responses.sleep_hours) addText(`Horas de sueño: ${responses.sleep_hours} horas`);
-        if (responses.stress_level !== undefined) addText(`Nivel de estrés: ${responses.stress_level}/10`);
-        if (responses.additional_concerns) addText(`Preocupaciones adicionales: ${responses.additional_concerns}`);
-        yPosition += 10;
       }
 
       // Recommendations (use edited data if available)
