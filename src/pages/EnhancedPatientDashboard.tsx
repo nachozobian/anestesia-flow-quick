@@ -164,6 +164,7 @@ const EnhancedPatientDashboard = () => {
         if (consent && consent.length > 0) {
           setCurrentStep(Step.COMPLETE);
         } else if (recommendations && recommendations.length > 0) {
+          // Si ya existen recomendaciones, solo permitir ir al consentimiento
           setCurrentStep(Step.CONSENT);
         } else if (chatHistory && chatHistory.length > 0) {
           setCurrentStep(Step.RECOMMENDATIONS);

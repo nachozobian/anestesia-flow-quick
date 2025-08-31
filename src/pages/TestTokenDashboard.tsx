@@ -113,9 +113,10 @@ export default function TestTokenDashboard() {
       } else if (consent && consent.length > 0) {
         setCurrentStep(Step.CONSENT);
       } else if (recommendations && recommendations.length > 0) {
-        setCurrentStep(Step.RECOMMENDATIONS);
+        // Si ya existen recomendaciones, solo permitir ir al consentimiento
+        setCurrentStep(Step.CONSENT);
       } else if (conversations && conversations.length > 0) {
-        setCurrentStep(Step.CHAT);
+        setCurrentStep(Step.RECOMMENDATIONS);
       } else {
         setCurrentStep(Step.DATA_CONSENT);
       }
