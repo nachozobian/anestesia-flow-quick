@@ -270,6 +270,10 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
     }
 
     try {
+      console.log('Starting PDF generation for patient:', patient.name);
+      console.log('Report data:', report);
+      console.log('Report keys:', Object.keys(report || {}));
+      
       const pdf = new jsPDF();
       const pageWidth = pdf.internal.pageSize.width;
       const margin = 20;
@@ -277,16 +281,21 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
 
       // Helper function to add text with word wrap
       const addText = (text: string, fontSize = 10, isBold = false) => {
-        pdf.setFontSize(fontSize);
-        pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
-        const lines = pdf.splitTextToSize(text, pageWidth - 2 * margin);
-        pdf.text(lines, margin, yPosition);
-        yPosition += lines.length * (fontSize * 0.5) + 5;
-        
-        // Check if we need a new page
-        if (yPosition > pdf.internal.pageSize.height - 30) {
-          pdf.addPage();
-          yPosition = 30;
+        try {
+          pdf.setFontSize(fontSize);
+          pdf.setFont('helvetica', isBold ? 'bold' : 'normal');
+          const lines = pdf.splitTextToSize(text, pageWidth - 2 * margin);
+          pdf.text(lines, margin, yPosition);
+          yPosition += lines.length * (fontSize * 0.5) + 5;
+          
+          // Check if we need a new page
+          if (yPosition > pdf.internal.pageSize.height - 30) {
+            pdf.addPage();
+            yPosition = 30;
+          }
+        } catch (textError) {
+          console.error('Error adding text to PDF:', textError);
+          // Continue without this text rather than failing completely
         }
       };
 
@@ -564,6 +573,9 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
   };
 
   const generatePDF = (patient: Patient) => {
+    console.log('generatePDF called for patient:', patient.name);
+    console.log('Patient reports state:', patientReports);
+    console.log('Report for this patient:', patientReports[patient.id]);
     generatePDFWithData(patient);
   };
 
