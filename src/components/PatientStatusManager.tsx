@@ -361,10 +361,6 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       }
 
       // Consents
-      console.log('Debug - report object:', report);
-      console.log('Debug - report.consents:', report.consents);
-      console.log('Debug - report.consents type:', typeof report.consents);
-      console.log('Debug - report.consents length:', report.consents?.length);
       
       if (report.consents && report.consents.length > 0) {
         const preAnestheticConsent = report.consents.find((c: any) => c.consent_type === 'pre_anesthetic');
@@ -500,8 +496,40 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
             yPosition += 10;
           }
         }
+      } else {
+        // Add consent section even when no consents exist
+        pdf.addPage();
+        yPosition = 30;
         
-        // Summary of other consents
+        addText('CONSENTIMIENTO INFORMADO PARA ANESTESIA', 16, true);
+        yPosition += 10;
+        
+        // Patient info section
+        addText(`Paciente: ${patient.name}`, 12, true);
+        addText(`DNI: ${patient.dni}`);
+        addText(`Procedimiento: ${patient.procedure || 'No especificado'}`);
+        if (patient.procedure_date) {
+          addText(`Fecha del Procedimiento: ${format(new Date(patient.procedure_date), "PPP", { locale: es })}`);
+        }
+        yPosition += 20;
+        
+        addText('Estado del Consentimiento: PENDIENTE', 12, true);
+        yPosition += 15;
+        
+        // Draw empty signature box
+        addText('FIRMA DEL PACIENTE:', 12, true);
+        yPosition += 5;
+        pdf.rect(margin, yPosition, 80, 40);
+        pdf.text('Firma:', margin, yPosition - 3);
+        yPosition += 50;
+        
+        addText('Fecha: _______________', 10);
+        yPosition += 10;
+      }
+      
+      // Summary of other consents (only if consents exist)
+      if (report.consents && report.consents.length > 0) {
+        const preAnestheticConsent = report.consents.find((c: any) => c.consent_type === 'pre_anesthetic');
         if (report.consents.length > 1 || !preAnestheticConsent) {
           yPosition += 10;
           addText('RESUMEN DE CONSENTIMIENTOS', 12, true);
