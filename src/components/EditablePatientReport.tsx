@@ -126,6 +126,12 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
   const handleSave = async () => {
     if (validateForm()) {
       try {
+        // Get current user for validation
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          throw new Error('Usuario no autenticado');
+        }
+
         // Update patient basic information
         const { error: patientError } = await supabase
           .from('patients')
@@ -137,7 +143,9 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
             birth_date: editedData.birth_date,
             procedure: editedData.procedure,
             procedure_date: editedData.procedure_date,
-            status: 'Validado'
+            status: 'Validado',
+            validated_by: user.id,
+            validated_at: new Date().toISOString()
           })
           .eq('id', patient.id);
 
@@ -191,16 +199,25 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
           if (recError) throw recError;
         }
 
-        // Validate the patient report officially
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.rpc('validate_patient_report', {
-            patient_id: patient.id,
-            validator_user_id: user.id
-          });
+        // Call the validation function to officially validate the report
+        const { data: validationResult, error: validationError } = await supabase.rpc('validate_patient_report', {
+          patient_id: patient.id,
+          validator_user_id: user.id
+        });
+
+        if (validationError) {
+          console.error('Validation error:', validationError);
         }
 
+        // Generate PDF with updated data
         onSaveAndGeneratePDF(editedData);
+        
+        // Close the modal
+        onClose();
+        
+        // Refresh the page to show updated status
+        window.location.reload();
+
         toast({
           title: "Informe validado",
           description: "Los cambios han sido guardados, el estado cambió a 'Validado' y el PDF está siendo generado.",

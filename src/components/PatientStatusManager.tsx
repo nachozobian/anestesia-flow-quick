@@ -350,10 +350,15 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       // Conversations (always use original data for conversations)
       const conversations = report.conversations || [];
       if (conversations.length > 0) {
-        addText('CONVERSACIÓN CON IA', 14, true);
+        addText('RESUMEN DE CONVERSACIONES CON IA', 14, true);
+        addText(`Total de mensajes intercambiados: ${conversations.length}`, 11, true);
+        yPosition += 5;
+        
         conversations.forEach((conv: any, index: number) => {
           const role = conv.role === 'user' ? 'Paciente' : 'IA Médica';
-          addText(`${role}: ${conv.content}`, 10);
+          const timestamp = conv.created_at ? format(new Date(conv.created_at), "PPp", { locale: es }) : '';
+          addText(`[${timestamp}] ${role}:`, 10, true);
+          addText(conv.content, 10);
           yPosition += 3;
         });
         yPosition += 10;
