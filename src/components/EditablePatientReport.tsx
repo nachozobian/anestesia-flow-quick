@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertTriangle, Download, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface Patient {
   id: string;
@@ -120,13 +123,96 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (validateForm()) {
-      onSaveAndGeneratePDF(editedData);
-      toast({
-        title: "Informe actualizado",
-        description: "Los cambios han sido guardados y el PDF está siendo generado.",
-      });
+      try {
+        // Update patient basic information
+        const { error: patientError } = await supabase
+          .from('patients')
+          .update({
+            name: editedData.name,
+            email: editedData.email,
+            phone: editedData.phone,
+            dni: editedData.dni,
+            birth_date: editedData.birth_date,
+            procedure: editedData.procedure,
+            procedure_date: editedData.procedure_date,
+            status: 'Validado'
+          })
+          .eq('id', patient.id);
+
+        if (patientError) throw patientError;
+
+        // Update patient responses
+        const { error: responseError } = await supabase
+          .from('patient_responses')
+          .upsert({
+            patient_id: patient.id,
+            emergency_contact_name: editedData.emergency_contact_name,
+            emergency_contact_phone: editedData.emergency_contact_phone,
+            emergency_contact_relationship: editedData.emergency_contact_relationship,
+            has_allergies: editedData.has_allergies,
+            allergies: editedData.allergies,
+            current_medications: editedData.current_medications,
+            medical_history: editedData.medical_history,
+            previous_surgeries: editedData.previous_surgeries,
+            family_history: editedData.family_history,
+            smoking: editedData.smoking,
+            alcohol: editedData.alcohol,
+            exercise: editedData.exercise,
+            diet: editedData.diet,
+            sleep_hours: editedData.sleep_hours ? parseInt(editedData.sleep_hours) : null,
+            stress_level: editedData.stress_level ? parseInt(editedData.stress_level) : null,
+            additional_concerns: editedData.additional_concerns,
+            updated_at: new Date().toISOString()
+          });
+
+        if (responseError) throw responseError;
+
+        // Delete existing recommendations and insert new ones
+        await supabase
+          .from('patient_recommendations')
+          .delete()
+          .eq('patient_id', patient.id);
+
+        if (editedData.recommendations && editedData.recommendations.length > 0) {
+          const { error: recError } = await supabase
+            .from('patient_recommendations')
+            .insert(
+              editedData.recommendations.map((rec: any) => ({
+                patient_id: patient.id,
+                category: rec.category,
+                title: rec.title,
+                description: rec.description,
+                priority: rec.priority
+              }))
+            );
+
+          if (recError) throw recError;
+        }
+
+        // Validate the patient report officially
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.rpc('validate_patient_report', {
+            patient_id: patient.id,
+            validator_user_id: user.id
+          });
+        }
+
+        onSaveAndGeneratePDF(editedData);
+        toast({
+          title: "Informe validado",
+          description: "Los cambios han sido guardados, el estado cambió a 'Validado' y el PDF está siendo generado.",
+        });
+      } catch (error) {
+        console.error('Error saving patient data:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron guardar los cambios. Inténtelo de nuevo.",
+          variant: "destructive",
+        });
+      }
     } else {
       toast({
         title: "Error de validación",
@@ -497,18 +583,35 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
             </CardContent>
           </Card>
 
-          {/* Conversations Summary (Read-only) */}
+          {/* Conversations Summary */}
           {editedData.conversations?.length > 0 && (
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Resumen de Conversaciones</CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <Badge variant="outline">
                   {editedData.conversations.length} mensajes intercambiados con IA
                 </Badge>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Las conversaciones se incluirán automáticamente en el PDF
+                
+                <div className="max-h-60 overflow-y-auto space-y-3 border rounded-lg p-4">
+                  {editedData.conversations.map((conv: any, index: number) => (
+                    <div key={index} className="border-b last:border-b-0 pb-2 last:pb-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant={conv.role === 'user' ? 'default' : 'secondary'} className="text-xs">
+                          {conv.role === 'user' ? 'Paciente' : 'IA Médica'}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {format(new Date(conv.created_at), "PPp", { locale: es })}
+                        </span>
+                      </div>
+                      <p className="text-sm">{conv.content}</p>
+                    </div>
+                  ))}
+                </div>
+                
+                <p className="text-sm text-muted-foreground">
+                  Este resumen se incluirá automáticamente en el PDF
                 </p>
               </CardContent>
             </Card>

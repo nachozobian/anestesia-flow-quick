@@ -155,81 +155,6 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
     }
   };
 
-  const validatePatientReport = async (patient: Patient) => {
-    if (!canEditStatus) {
-      toast({
-        title: "Sin permisos",
-        description: "No tienes permisos para validar informes",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Usuario no autenticado');
-      }
-
-      // Validate the report first
-      const { data, error } = await supabase.rpc('validate_patient_report', {
-        patient_id: patient.id,
-        validator_user_id: user.id
-      });
-
-      if (error) throw error;
-
-      if (data) {
-        // Update local state
-        setPatients(prev => prev.map(p => 
-          p.id === patient.id 
-            ? { ...p, status: 'Validado' }
-            : p
-        ));
-
-        // Send validation SMS
-        try {
-          const { error: smsError } = await supabase.functions.invoke('send-validation-sms', {
-            body: {
-              patientId: patient.id,
-              validatorName: user.email || 'Equipo médico'
-            }
-          });
-
-          if (smsError) {
-            console.error('Error sending validation SMS:', smsError);
-            // Don't throw error, just log it - validation was successful
-            toast({
-              title: "Informe Validado",
-              description: `El informe de ${patient.name} ha sido validado, pero no se pudo enviar el SMS de confirmación`,
-              variant: "default",
-            });
-          } else {
-            toast({
-              title: "Informe Validado",
-              description: `El informe de ${patient.name} ha sido validado y se ha enviado SMS de confirmación`,
-            });
-          }
-        } catch (smsError) {
-          console.error('Error sending validation SMS:', smsError);
-          toast({
-            title: "Informe Validado",
-            description: `El informe de ${patient.name} ha sido validado, pero no se pudo enviar el SMS de confirmación`,
-            variant: "default",
-          });
-        }
-      } else {
-        throw new Error('No se pudo validar el informe');
-      }
-    } catch (error) {
-      console.error('Error validating patient report:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo validar el informe del paciente",
-        variant: "destructive",
-      });
-    }
-  };
 
   const sendSMSManually = async (patient: Patient) => {
     if (!canEditStatus) {
@@ -974,54 +899,16 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
                                       )}
                                     </h4>
                                     <div className="flex items-center gap-2">
-                                      {patient.status === 'Completado' && canEditStatus && (
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <Button
-                                              size="sm"
-                                              variant="default"
-                                              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                                            >
-                                              <Shield className="h-4 w-4" />
-                                              Validar Informe
-                                            </Button>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>Confirmar Validación</AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                ¿Estás seguro de que quieres validar el informe de <strong>{patient.name}</strong>?
-                                                <br /><br />
-                                                Al validar el informe:
-                                                <ul className="list-disc list-inside mt-2 space-y-1">
-                                                  <li>El estado cambiará a "Validado"</li>
-                                                  <li>Se enviará un SMS de confirmación al paciente</li>
-                                                  <li>Esta acción no se puede deshacer fácilmente</li>
-                                                </ul>
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                              <AlertDialogAction
-                                                onClick={() => validatePatientReport(patient)}
-                                                className="bg-green-600 hover:bg-green-700"
-                                              >
-                                                Sí, Validar Informe
-                                              </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
-                                      )}
-                                       <Button
-                                         onClick={() => setEditingPatient(patient)}
-                                         size="sm"
-                                         variant="default"
-                                         className="flex items-center gap-2"
-                                       >
-                                         <Download className="h-4 w-4" />
-                                         Ver/Editar Informe
-                                       </Button>
-                                    </div>
+                                        <Button
+                                          onClick={() => setEditingPatient(patient)}
+                                          size="sm"
+                                          variant="default"
+                                          className="flex items-center gap-2"
+                                        >
+                                          <Download className="h-4 w-4" />
+                                          Ver/Editar Informe
+                                        </Button>
+                                     </div>
                                   </div>
                                   
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
