@@ -73,7 +73,7 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
         emergency_contact_name: patientReport.responses?.emergency_contact_name || '',
         emergency_contact_phone: patientReport.responses?.emergency_contact_phone || '',
         emergency_contact_relationship: patientReport.responses?.emergency_contact_relationship || '',
-        has_allergies: patientReport.responses?.has_allergies || false,
+        has_allergies: patientReport.responses?.has_allergies ?? (patientReport.responses?.allergies && patientReport.responses?.allergies.trim() !== '' ? true : false),
         allergies: patientReport.responses?.allergies || '',
         current_medications: patientReport.responses?.current_medications || '',
         medical_history: patientReport.responses?.medical_history || '',
@@ -111,13 +111,6 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
       newErrors.allergies = 'Debe especificar las alergias';
     }
     
-    if (!editedData.emergency_contact_name?.trim()) {
-      newErrors.emergency_contact_name = 'Contacto de emergencia es requerido';
-    }
-    
-    if (!editedData.emergency_contact_phone?.trim()) {
-      newErrors.emergency_contact_phone = 'Teléfono de emergencia es requerido';
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -375,27 +368,23 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
               </CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="emergency_name">Nombre *</Label>
-                <Input
-                  id="emergency_name"
-                  value={editedData.emergency_contact_name || ''}
-                  onChange={(e) => updateField('emergency_contact_name', e.target.value)}
-                  className={errors.emergency_contact_name ? 'border-destructive' : ''}
-                />
-                {errors.emergency_contact_name && <p className="text-sm text-destructive mt-1">{errors.emergency_contact_name}</p>}
-              </div>
-              
-              <div>
-                <Label htmlFor="emergency_phone">Teléfono *</Label>
-                <Input
-                  id="emergency_phone"
-                  value={editedData.emergency_contact_phone || ''}
-                  onChange={(e) => updateField('emergency_contact_phone', e.target.value)}
-                  className={errors.emergency_contact_phone ? 'border-destructive' : ''}
-                />
-                {errors.emergency_contact_phone && <p className="text-sm text-destructive mt-1">{errors.emergency_contact_phone}</p>}
-              </div>
+               <div>
+                 <Label htmlFor="emergency_name">Nombre</Label>
+                 <Input
+                   id="emergency_name"
+                   value={editedData.emergency_contact_name || ''}
+                   onChange={(e) => updateField('emergency_contact_name', e.target.value)}
+                 />
+               </div>
+               
+               <div>
+                 <Label htmlFor="emergency_phone">Teléfono</Label>
+                 <Input
+                   id="emergency_phone"
+                   value={editedData.emergency_contact_phone || ''}
+                   onChange={(e) => updateField('emergency_contact_phone', e.target.value)}
+                 />
+               </div>
               
               <div>
                 <Label htmlFor="emergency_relationship">Relación</Label>
