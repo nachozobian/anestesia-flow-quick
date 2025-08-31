@@ -36,6 +36,7 @@ interface PatientReport {
   recommendations: any[];
   conversations: any[];
   consents: any[];
+  summary: any;
 }
 
 interface EditablePatientReportProps {
@@ -90,9 +91,10 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
         // Recommendations (editable)
         recommendations: patientReport.recommendations || [],
         
-        // Conversations and consents (read-only for display)
+        // Conversations, consents and summary (read-only for display)
         conversations: patientReport.conversations || [],
-        consents: patientReport.consents || []
+        consents: patientReport.consents || [],
+        summary: patientReport.summary || null
       });
     }
   }, [patientReport, patient, isOpen]);
@@ -493,11 +495,36 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
             </CardContent>
           </Card>
 
+          {/* AI Generated Conversation Summary */}
+          {editedData.summary && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Resumen de Evaluación Preanestésica</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="border rounded-lg p-4 bg-muted/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Badge variant="outline">Generado por IA</Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(editedData.summary.created_at), "PPp", { locale: es })}
+                    </span>
+                  </div>
+                  <div className="prose prose-sm max-w-none">
+                    <p className="text-sm whitespace-pre-wrap">{editedData.summary.summary}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Este resumen se incluirá automáticamente en el PDF del informe
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Conversations Summary */}
           {editedData.conversations?.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Resumen de Conversaciones</CardTitle>
+                <CardTitle className="text-lg">Historial de Conversaciones</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Badge variant="outline">
@@ -521,7 +548,7 @@ export const EditablePatientReport: React.FC<EditablePatientReportProps> = ({
                 </div>
                 
                 <p className="text-sm text-muted-foreground">
-                  Este resumen se incluirá automáticamente en el PDF
+                  Conversaciones detalladas disponibles para referencia
                 </p>
               </CardContent>
             </Card>

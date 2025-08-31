@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      conversation_summaries: {
+        Row: {
+          created_at: string
+          generated_by: string | null
+          id: string
+          patient_id: string
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          generated_by?: string | null
+          id?: string
+          patient_id: string
+          summary: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          generated_by?: string | null
+          id?: string
+          patient_id?: string
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_summaries_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       informed_consents: {
         Row: {
           accepted: boolean | null
@@ -317,6 +352,17 @@ export type Database = {
       assign_admin_roles: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_conversation_summary_by_token: {
+        Args: { patient_token: string }
+        Returns: {
+          created_at: string
+          generated_by: string
+          id: string
+          patient_id: string
+          summary: string
+          updated_at: string
+        }[]
       }
       get_patient_by_token: {
         Args: { patient_token: string }

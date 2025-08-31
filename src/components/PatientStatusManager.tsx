@@ -232,13 +232,18 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
       const { data: consentData } = await supabase
         .rpc('get_patient_consents_by_token', { patient_token: patient.token });
 
+      // Get conversation summary
+      const { data: summaryData } = await supabase
+        .rpc('get_conversation_summary_by_token', { patient_token: patient.token });
+
       setPatientReports(prev => ({
         ...prev,
         [patient.id]: {
           responses: responseData?.[0] || null,
           conversations: conversationData || [],
           recommendations: recommendationData || [],
-          consents: consentData || []
+          consents: consentData || [],
+          summary: summaryData?.[0] || null
         }
       }));
     } catch (error) {
@@ -253,6 +258,7 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
 
   const generatePDFWithData = async (patient: Patient, editedData?: any) => {
     const report = editedData || patientReports[patient.id];
+    const summary = report?.summary || null;
     
     if (!report) {
       toast({
@@ -314,6 +320,15 @@ const PatientStatusManager: React.FC<PatientStatusManagerProps> = ({ userRole })
           yPosition += 5;
         }
 
+      }
+
+      // AI Generated Conversation Summary (priority placement)
+      if (summary) {
+        addText('RESUMEN DE EVALUACIÓN PREANESTÉSICA', 14, true);
+        addText(`Generado por: ${summary.generated_by} el ${format(new Date(summary.created_at), "PPp", { locale: es })}`, 9);
+        yPosition += 5;
+        addText(summary.summary, 10);
+        yPosition += 10;
       }
 
       // Recommendations (use edited data if available)

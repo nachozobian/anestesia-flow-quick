@@ -218,7 +218,7 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
     }
   };
 
-  const handleCompleteConsultation = () => {
+  const handleCompleteConsultation = async () => {
     if (!canComplete) {
       toast({
         title: "Consulta incompleta",
@@ -227,6 +227,33 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
       });
       return;
     }
+
+    setLoading(true);
+    try {
+      // Generate conversation summary
+      const { data: summaryResult, error: summaryError } = await supabase.functions.invoke('generate-conversation-summary', {
+        body: { patientToken: patientId }
+      });
+
+      if (summaryError) {
+        console.error('Error generating summary:', summaryError);
+        toast({
+          title: "Advertencia",
+          description: "La consulta se completó pero no se pudo generar el resumen automático.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Resumen Generado",
+          description: "Se ha generado un resumen completo de la consulta que estará disponible en el informe.",
+        });
+      }
+    } catch (error) {
+      console.error('Error in summary generation:', error);
+    } finally {
+      setLoading(false);
+    }
+
     onComplete();
   };
 
