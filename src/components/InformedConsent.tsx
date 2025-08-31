@@ -314,49 +314,10 @@ Fecha: ${new Date().toLocaleDateString()}
           accepted_at: new Date().toISOString()
         });
 
-        // Send SMS with appointment details after consent is "signed"
-        try {
-          // Generate appointment date (next available slot - for demo, adding 7 days)
-          const appointmentDate = new Date();
-          appointmentDate.setDate(appointmentDate.getDate() + 7);
-          appointmentDate.setHours(9, 0, 0, 0); // 9 AM appointment
-          
-          // For SMS, we need the actual patient UUID, so get it from the token
-          const { data: patientResult } = await supabase
-            .rpc('get_patient_by_token', { patient_token: patientId });
-          
-          const patient = patientResult?.[0];
-          
-          if (patient) {
-            const { data: smsData, error: smsError } = await supabase.functions.invoke('send-appointment-sms', {
-              body: {
-                patientId: patient.id,
-                appointmentDate: appointmentDate.toISOString(),
-                procedure: 'Consulta Pre-operatoria'
-              }
-            });
-
-            if (smsError) {
-              console.error('Error sending appointment SMS:', smsError);
-              toast({
-                title: "Consentimiento aceptado",
-                description: "Consentimiento registrado. Error enviando SMS de cita - verifique las credenciales de Twilio.",
-                variant: "destructive",
-              });
-            } else {
-              toast({
-                title: "¡Proceso Completado!",
-                description: `Consentimiento firmado y SMS enviado con cita para el ${appointmentDate.toLocaleDateString()}`,
-              });
-            }
-          }
-        } catch (smsError) {
-          console.error('SMS Error:', smsError);
-          toast({
-            title: "Consentimiento aceptado",
-            description: "Consentimiento registrado exitosamente. Error con el SMS de cita.",
-          });
-        }
+        toast({
+          title: "¡Proceso Completado!",
+          description: "Consentimiento firmado exitosamente.",
+        });
 
         // Update patient status to completed using secure function
         await supabase.rpc('update_patient_by_token', {
@@ -364,43 +325,6 @@ Fecha: ${new Date().toLocaleDateString()}
           new_status: 'Completado'
         });
 
-        // Send SMS notification after completing evaluation
-        try {
-          console.log('Starting SMS send process for patient token:', patientId);
-          
-          // Get patient data for SMS
-          const { data: patientResult } = await supabase
-            .rpc('get_patient_by_token', { patient_token: patientId });
-          
-          const patientData = patientResult?.[0];
-          console.log('Patient data for SMS:', patientData);
-          
-          if (patientData) {
-            console.log('Invoking SMS function with data:', {
-              patientId: patientData.id,
-              appointmentDate: patientData.procedure_date,
-              procedure: patientData.procedure
-            });
-            
-            const { error: smsError } = await supabase.functions.invoke('send-appointment-sms', {
-              body: {
-                patientId: patientData.id,
-                appointmentDate: patientData.procedure_date,
-                procedure: patientData.procedure
-              }
-            });
-
-            if (smsError) {
-              console.error('Error sending SMS:', smsError);
-            } else {
-              console.log('SMS sent successfully');
-            }
-          } else {
-            console.log('No patient data found for SMS');
-          }
-        } catch (smsError) {
-          console.error('Error sending SMS:', smsError);
-        }
 
         onComplete();
         return;
@@ -430,30 +354,6 @@ Fecha: ${new Date().toLocaleDateString()}
         new_status: 'Completado'
       });
 
-      // Send SMS notification after completing evaluation
-      try {
-        // Get patient data for SMS
-        const { data: patientResult } = await supabase
-          .rpc('get_patient_by_token', { patient_token: patientId });
-        
-        const patientData = patientResult?.[0];
-        
-        if (patientData) {
-          const { error: smsError } = await supabase.functions.invoke('send-appointment-sms', {
-            body: {
-              patientId: patientData.id,
-              appointmentDate: patientData.procedure_date,
-              procedure: patientData.procedure
-            }
-          });
-
-          if (smsError) {
-            console.error('Error sending SMS:', smsError);
-          }
-        }
-      } catch (smsError) {
-        console.error('Error sending SMS:', smsError);
-      }
 
       onComplete();
 
