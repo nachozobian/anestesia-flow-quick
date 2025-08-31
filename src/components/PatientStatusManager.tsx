@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarIcon, Filter, Users, Clock, CheckCircle, AlertCircle, ChevronDown, ChevronRight, Download, FileText, Shield } from 'lucide-react';
+import { CalendarIcon, Filter, Users, Clock, CheckCircle, AlertCircle, ChevronDown, ChevronRight, Download, FileText, Shield, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Calendar } from '@/components/ui/calendar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -31,6 +32,9 @@ interface Patient {
   birth_date?: string;
   token: string;
   updated_at: string;
+  has_infection?: boolean;
+  infection_detected_at?: string;
+  infection_keywords?: string;
 }
 
 interface PatientStatusManagerProps {
@@ -866,16 +870,51 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
                           }
                         </TableCell>
                         <TableCell>
-                          <Badge 
-                            variant={getStatusVariant(patient.status)}
-                            className={cn(
-                              "flex items-center gap-1 w-fit",
-                              patient.status === 'Validado' && "bg-green-100 text-green-800 border-green-300"
+                          <div className="flex items-center gap-2">
+                            <Badge 
+                              variant={getStatusVariant(patient.status)}
+                              className={cn(
+                                "flex items-center gap-1 w-fit",
+                                patient.status === 'Validado' && "bg-green-100 text-green-800 border-green-300"
+                              )}
+                            >
+                              {getStatusIcon(patient.status)}
+                              {patient.status}
+                            </Badge>
+                            
+                            {/* Infection Flag */}
+                            {patient.has_infection && patient.status === 'Completado' && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Badge 
+                                      variant="destructive" 
+                                      className="bg-red-100 text-red-800 border-red-300 cursor-help animate-pulse"
+                                    >
+                                      <Zap className="h-3 w-3 mr-1" />
+                                      Infección
+                                    </Badge>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <div className="max-w-60">
+                                      <p className="font-semibold mb-1">🦠 Proceso Infeccioso Detectado</p>
+                                      <p className="text-xs mb-1">
+                                        Detectado el {patient.infection_detected_at ? format(new Date(patient.infection_detected_at), "PPp", { locale: es }) : 'fecha no disponible'}
+                                      </p>
+                                      {patient.infection_keywords && (
+                                        <p className="text-xs">
+                                          <strong>Palabras clave:</strong> {patient.infection_keywords}
+                                        </p>
+                                      )}
+                                      <p className="text-xs mt-1 text-yellow-600">
+                                        ⚠️ Requiere evaluación médica urgente
+                                      </p>
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
                             )}
-                          >
-                            {getStatusIcon(patient.status)}
-                            {patient.status}
-                          </Badge>
+                          </div>
                         </TableCell>
                         {canEditStatus && (
                           <TableCell>

@@ -243,7 +243,10 @@ export type Database = {
           created_at: string | null
           dni: string
           email: string
+          has_infection: boolean | null
           id: string
+          infection_detected_at: string | null
+          infection_keywords: string | null
           name: string
           phone: string | null
           procedure: string | null
@@ -260,7 +263,10 @@ export type Database = {
           created_at?: string | null
           dni: string
           email: string
+          has_infection?: boolean | null
           id?: string
+          infection_detected_at?: string | null
+          infection_keywords?: string | null
           name: string
           phone?: string | null
           procedure?: string | null
@@ -277,7 +283,10 @@ export type Database = {
           created_at?: string | null
           dni?: string
           email?: string
+          has_infection?: boolean | null
           id?: string
+          infection_detected_at?: string | null
+          infection_keywords?: string | null
           name?: string
           phone?: string | null
           procedure?: string | null

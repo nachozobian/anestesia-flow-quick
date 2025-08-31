@@ -250,9 +250,79 @@ IMPORTANTE: Sigue la estructura paso a paso, haz UNA PREGUNTA A LA VEZ de forma 
         try {
           const recommendationsData = JSON.parse(toolCall.function.arguments);
           
+          // EVALUATE INFECTION BEFORE GENERATING RECOMMENDATIONS
+          let hasInfection = false;
+          let detectedKeywords = [];
+          
+          if (actualPatientId) {
+            // Get all conversation history for this patient
+            const { data: conversations } = await supabase
+              .from('patient_conversations')
+              .select('content, role')
+              .eq('patient_id', actualPatientId)
+              .eq('role', 'user');
+            
+            if (conversations && conversations.length > 0) {
+              // Keywords related to infection
+              const infectionKeywords = [
+                'fiebre', 'fever', 'temperatura', 'calor',
+                'infección', 'infection', 'infectado', 'infected',
+                'pus', 'supuración', 'supurando',
+                'antibiótico', 'antibiotic', 'amoxicilina', 'penicilina',
+                'secreción', 'secreciones', 'discharge', 'drainage',
+                'dolor inflamado', 'inflamación', 'inflammation', 'swollen',
+                'hinchazón', 'hinchado', 'swelling',
+                'enrojecimiento', 'redness', 'enrojecido', 'red',
+                'escalofríos', 'chills', 'sudores', 'sweats',
+                'malestar general', 'malaise', 'fatiga', 'weakness',
+                'ganglios', 'lymph nodes', 'adenopatía',
+                'herida infectada', 'infected wound', 'wound infection',
+                'celulitis', 'cellulitis', 'absceso', 'abscess'
+              ];
+              
+              // Search for infection keywords in user messages
+              const userContent = conversations.map(conv => conv.content.toLowerCase()).join(' ');
+              
+              for (const keyword of infectionKeywords) {
+                if (userContent.includes(keyword.toLowerCase())) {
+                  hasInfection = true;
+                  detectedKeywords.push(keyword);
+                }
+              }
+              
+              console.log('Infection evaluation:', { hasInfection, detectedKeywords, patientId: actualPatientId });
+              
+              // Update patient with infection status
+              const { error: updateError } = await supabase
+                .from('patients')
+                .update({
+                  has_infection: hasInfection,
+                  infection_detected_at: hasInfection ? new Date().toISOString() : null,
+                  infection_keywords: hasInfection ? detectedKeywords.join(', ') : null
+                })
+                .eq('id', actualPatientId);
+              
+              if (updateError) {
+                console.error('Error updating infection status:', updateError);
+              }
+            }
+          }
+          
           // Save recommendations to database using the actual patient ID
           if (actualPatientId && recommendationsData.recommendations) {
-            const recommendationsToInsert = recommendationsData.recommendations.map((rec: any) => ({
+            let finalRecommendations = [...recommendationsData.recommendations];
+            
+            // Add infection-specific recommendations if detected
+            if (hasInfection) {
+              finalRecommendations.unshift({
+                title: '⚠️ PROCESO INFECCIOSO DETECTADO',
+                description: `Se ha detectado posible proceso infeccioso basado en las siguientes palabras clave: ${detectedKeywords.join(', ')}. Se recomienda evaluación médica urgente antes del procedimiento y considerar tratamiento antibiótico específico.`,
+                category: 'riesgo',
+                priority: 'high'
+              });
+            }
+            
+            const recommendationsToInsert = finalRecommendations.map((rec: any) => ({
               patient_id: actualPatientId,
               title: rec.title,
               description: rec.description,
