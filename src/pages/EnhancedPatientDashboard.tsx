@@ -140,17 +140,10 @@ const EnhancedPatientDashboard = () => {
         setHasResponse(true);
         // Pre-populate form with existing data
         form.reset(existingResponse);
-        
-        // Determine current step based on backend validation
-        await checkPatientProgressWithValidation(patientData.token);
-      } else {
-        // No existing response, start appropriately
-        if (isTestPatient) {
-          setCurrentStep(Step.DATA_CONSENT);
-        } else {
-          setCurrentStep(Step.DATA_CONSENT); // Start with data consent, not form
-        }
       }
+
+      // Always check current process state before rendering any step
+      await checkPatientProgressWithValidation(patientData.token);
 
     } catch (error) {
       console.error('Error fetching patient data:', error);
