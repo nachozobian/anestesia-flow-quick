@@ -357,8 +357,8 @@ export default function TestTokenDashboard() {
         {currentStep === Step.DATA_CONSENT && (
           <DataProcessingConsent 
             onAccept={async () => {
-              if (await validateAndProceedToStep('chat')) {
-                await markStepCompleted('data_consent');
+              // Mark current step as completed first, then proceed to next
+              if (await markStepCompleted('data_consent')) {
                 setCurrentStep(Step.CHAT);
               }
             }} 
@@ -369,8 +369,8 @@ export default function TestTokenDashboard() {
           <PatientChat
             patientId={patient.id}
             onComplete={async () => {
-              if (await validateAndProceedToStep('recommendations')) {
-                await markStepCompleted('chat');
+              // Mark current step as completed first, then proceed to next
+              if (await markStepCompleted('chat')) {
                 setCurrentStep(Step.RECOMMENDATIONS);
               }
             }}
@@ -381,8 +381,8 @@ export default function TestTokenDashboard() {
           <RecommendationsView
             patientId={patient.id}
             onContinue={async () => {
-              if (await validateAndProceedToStep('consent')) {
-                await markStepCompleted('recommendations');
+              // Mark current step as completed first, then proceed to next
+              if (await markStepCompleted('recommendations')) {
                 setCurrentStep(Step.CONSENT);
               }
             }}
@@ -393,9 +393,8 @@ export default function TestTokenDashboard() {
           <InformedConsent
             patientId={patient.id}
             onComplete={async () => {
-              if (await validateAndProceedToStep('completed')) {
-                await markStepCompleted('consent');
-                await markStepCompleted('completed');
+              // Mark both consent and completed steps, then finish
+              if (await markStepCompleted('consent') && await markStepCompleted('completed')) {
                 setCurrentStep(Step.COMPLETED);
               }
             }}
