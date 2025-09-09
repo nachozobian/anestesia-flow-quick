@@ -141,38 +141,8 @@ const EnhancedPatientDashboard = () => {
         // Pre-populate form with existing data
         form.reset(existingResponse);
         
-        // Determine current step based on progress
-        const { data: chatHistory } = await supabase
-          .from('patient_conversations')
-          .select('*')
-          .eq('patient_id', patientData.id)
-          .limit(1);
-
-        const { data: recommendations } = await supabase
-          .from('patient_recommendations')
-          .select('*')
-          .eq('patient_id', patientData.id)
-          .limit(1);
-
-        const { data: consent } = await supabase
-          .from('informed_consents')
-          .select('*')
-          .eq('patient_id', patientData.id)
-          .eq('accepted', true)
-          .limit(1);
-
-        if (consent && consent.length > 0) {
-          setCurrentStep(Step.COMPLETE);
-        } else if (recommendations && recommendations.length > 0) {
-          // Si ya existen recomendaciones, solo permitir ir al consentimiento
-          setCurrentStep(Step.CONSENT);
-        } else if (chatHistory && chatHistory.length > 0) {
-          setCurrentStep(Step.RECOMMENDATIONS);
-        } else if (isTestPatient) {
-          setCurrentStep(Step.CHAT);
-        } else {
-          setCurrentStep(Step.DATA_CONSENT); // Skip form for regular patients if they have responses
-        }
+        // Determine current step based on backend validation
+        await checkPatientProgressWithValidation(patientData.token);
       } else {
         // No existing response, start appropriately
         if (isTestPatient) {
@@ -191,6 +161,107 @@ const EnhancedPatientDashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkPatientProgressWithValidation = async (patientToken: string) => {
+    try {
+      // Usar función backend para obtener el paso actual
+      const { data: currentStepResult, error } = await supabase
+        .rpc('get_current_step_by_token', { patient_token: patientToken });
+
+      if (error) {
+        console.error('Error getting current step:', error);
+        return;
+      }
+
+      // Mapear el resultado backend al enum del frontend
+      switch (currentStepResult) {
+        case 'completed':
+          setCurrentStep(Step.COMPLETE);
+          break;
+        case 'consent':
+          setCurrentStep(Step.CONSENT);
+          break;
+        case 'recommendations':
+          setCurrentStep(Step.RECOMMENDATIONS);
+          break;
+        case 'chat':
+          setCurrentStep(Step.CHAT);
+          break;
+        case 'data_consent':
+        default:
+          setCurrentStep(Step.DATA_CONSENT);
+          break;
+      }
+    } catch (error) {
+      console.error('Error checking progress:', error);
+    }
+  };
+
+  const validateAndProceedToStep = async (targetStep: string) => {
+    if (!token) return false;
+
+    try {
+      // Validar acceso al paso usando función backend
+      const { data: validation, error } = await supabase
+        .rpc('validate_step_access', { 
+          patient_token: token, 
+          target_step: targetStep 
+        });
+
+      if (error) {
+        console.error('Error validating step access:', error);
+        toast({
+          title: "Error de validación",
+          description: "No se pudo validar el acceso al paso",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const validationResult = validation as { allowed: boolean; reason?: string };
+
+      if (!validationResult.allowed) {
+        toast({
+          title: "Acceso denegado",
+          description: validationResult.reason || "No se puede acceder a este paso",
+          variant: "destructive",
+        });
+        
+        // Si el proceso está bloqueado, redirigir a una vista de proceso completado
+        if (validationResult.reason?.includes('completed and locked')) {
+          setCurrentStep(Step.COMPLETE);
+        }
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error validating step:', error);
+      return false;
+    }
+  };
+
+  const markStepCompleted = async (stepName: string) => {
+    if (!token) return false;
+
+    try {
+      const { data: success, error } = await supabase
+        .rpc('mark_step_completed', { 
+          patient_token: token, 
+          step_name: stepName 
+        });
+
+      if (error || !success) {
+        console.error('Error marking step completed:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error marking step completed:', error);
+      return false;
     }
   };
 
@@ -228,7 +299,10 @@ const EnhancedPatientDashboard = () => {
         description: "Sus respuestas han sido guardadas exitosamente.",
       });
 
-      setCurrentStep(Step.CHAT);
+      // Validar y proceder al siguiente paso
+      if (await validateAndProceedToStep('data_consent')) {
+        setCurrentStep(Step.DATA_CONSENT);
+      }
 
     } catch (error) {
       console.error('Error submitting form:', error);
@@ -349,7 +423,7 @@ const EnhancedPatientDashboard = () => {
             <div className="bg-muted rounded-lg p-4">
               <h3 className="font-semibold mb-2">Resumen</h3>
               <p className="text-sm text-muted-foreground">
-                ✓ Formulario médico completado<br />
+                ✓ Consentimiento de datos completado<br />
                 ✓ Consulta con IA realizada<br />
                 ✓ Recomendaciones generadas<br />
                 ✓ Consentimiento informado aceptado
@@ -358,12 +432,11 @@ const EnhancedPatientDashboard = () => {
             <p className="text-sm text-muted-foreground">
               Su equipo médico revisará la información y se pondrá en contacto con usted si es necesario.
             </p>
-            <Button 
-              onClick={() => navigate('/verify')} 
-              variant="outline"
-            >
-              Realizar Nueva Evaluación
-            </Button>
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-800">
+                ⚠️ Este proceso ha sido marcado como completado y no puede ser reiniciado o modificado.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -424,7 +497,14 @@ const EnhancedPatientDashboard = () => {
 
         {/* Step Content */}
         {currentStep === Step.DATA_CONSENT && (
-          <DataProcessingConsent onAccept={() => setCurrentStep(Step.CHAT)} />
+          <DataProcessingConsent 
+            onAccept={async () => {
+              if (await validateAndProceedToStep('chat')) {
+                await markStepCompleted('data_consent');
+                setCurrentStep(Step.CHAT);
+              }
+            }} 
+          />
         )}
 
         {currentStep === Step.FORM && (
@@ -768,21 +848,37 @@ const EnhancedPatientDashboard = () => {
         {currentStep === Step.CHAT && patient && token && (
           <PatientChat 
             patientId={token} 
-            onComplete={() => setCurrentStep(Step.RECOMMENDATIONS)}
+            onComplete={async () => {
+              if (await validateAndProceedToStep('recommendations')) {
+                await markStepCompleted('chat');
+                setCurrentStep(Step.RECOMMENDATIONS);
+              }
+            }}
           />
         )}
 
         {currentStep === Step.RECOMMENDATIONS && patient && token && (
           <RecommendationsView 
             patientId={token} 
-            onContinue={() => setCurrentStep(Step.CONSENT)}
+            onContinue={async () => {
+              if (await validateAndProceedToStep('consent')) {
+                await markStepCompleted('recommendations');
+                setCurrentStep(Step.CONSENT);
+              }
+            }}
           />
         )}
 
         {currentStep === Step.CONSENT && patient && token && (
           <InformedConsent 
             patientId={token} 
-            onComplete={() => setCurrentStep(Step.COMPLETE)}
+            onComplete={async () => {
+              if (await validateAndProceedToStep('completed')) {
+                await markStepCompleted('consent');
+                await markStepCompleted('completed');
+                setCurrentStep(Step.COMPLETE);
+              }
+            }}
           />
         )}
       </div>

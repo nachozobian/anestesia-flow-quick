@@ -240,7 +240,10 @@ export type Database = {
       patients: {
         Row: {
           birth_date: string | null
+          chat_completed_at: string | null
+          consent_completed_at: string | null
           created_at: string | null
+          data_consent_completed_at: string | null
           dni: string
           email: string
           has_infection: boolean | null
@@ -251,6 +254,9 @@ export type Database = {
           phone: string | null
           procedure: string | null
           procedure_date: string | null
+          process_completed_at: string | null
+          process_locked: boolean | null
+          recommendations_completed_at: string | null
           security_code: string | null
           status: string | null
           token: string
@@ -260,7 +266,10 @@ export type Database = {
         }
         Insert: {
           birth_date?: string | null
+          chat_completed_at?: string | null
+          consent_completed_at?: string | null
           created_at?: string | null
+          data_consent_completed_at?: string | null
           dni: string
           email: string
           has_infection?: boolean | null
@@ -271,6 +280,9 @@ export type Database = {
           phone?: string | null
           procedure?: string | null
           procedure_date?: string | null
+          process_completed_at?: string | null
+          process_locked?: boolean | null
+          recommendations_completed_at?: string | null
           security_code?: string | null
           status?: string | null
           token: string
@@ -280,7 +292,10 @@ export type Database = {
         }
         Update: {
           birth_date?: string | null
+          chat_completed_at?: string | null
+          consent_completed_at?: string | null
           created_at?: string | null
+          data_consent_completed_at?: string | null
           dni?: string
           email?: string
           has_infection?: boolean | null
@@ -291,6 +306,9 @@ export type Database = {
           phone?: string | null
           procedure?: string | null
           procedure_date?: string | null
+          process_completed_at?: string | null
+          process_locked?: boolean | null
+          recommendations_completed_at?: string | null
           security_code?: string | null
           status?: string | null
           token?: string
@@ -372,6 +390,10 @@ export type Database = {
           summary: string
           updated_at: string
         }[]
+      }
+      get_current_step_by_token: {
+        Args: { patient_token: string }
+        Returns: string
       }
       get_patient_by_token: {
         Args: { patient_token: string }
@@ -461,6 +483,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      mark_step_completed: {
+        Args: { patient_token: string; step_name: string }
+        Returns: boolean
+      }
       setup_admin_users: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -485,6 +511,10 @@ export type Database = {
       validate_patient_report: {
         Args: { patient_id: string; validator_user_id: string }
         Returns: boolean
+      }
+      validate_step_access: {
+        Args: { patient_token: string; target_step: string }
+        Returns: Json
       }
       verify_dni_and_security_code: {
         Args: { input_security_code: string; patient_dni: string }
