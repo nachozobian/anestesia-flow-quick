@@ -31,6 +31,7 @@ export default function TestTokenDashboard() {
   const [currentStep, setCurrentStep] = useState<Step>(Step.DATA_CONSENT);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentToken, setCurrentToken] = useState<string>('test-token');
   const { toast } = useToast();
 
   // Usar un paciente fijo para test-token
@@ -38,35 +39,54 @@ export default function TestTokenDashboard() {
     const loadTestPatient = async () => {
       try {
         // Buscar o crear paciente de prueba
-        const { data: existingPatient } = await supabase
+        let testToken = 'test-token';
+        const { data: existingPatients } = await supabase
           .from('patients')
           .select('*')
-          .eq('token', 'test-token')
-          .single();
+          .limit(1);
 
-        if (existingPatient) {
-          setPatient(existingPatient);
+        let patient = null;
+        
+        if (existingPatients && existingPatients.length > 0) {
+          // Usar el primer paciente existente como paciente de prueba
+          patient = existingPatients[0];
+          testToken = patient.token;
+          console.log('Using existing patient as test patient:', patient.name, testToken);
         } else {
-          // Crear paciente de prueba si no existe
-          const { data: newPatient, error } = await supabase
+          // Intentar buscar paciente test-token
+          const { data: testPatient } = await supabase
             .from('patients')
-            .insert({
-              token: 'test-token',
-              name: 'Paciente de Prueba',
-              dni: '12345678',
-              email: 'test@example.com',
-              procedure: 'Evaluación Pre-anestésica',
-              procedure_date: new Date().toISOString().split('T')[0]
-            })
-            .select()
+            .select('*')
+            .eq('token', 'test-token')
             .single();
 
-          if (error) throw error;
-          setPatient(newPatient);
+          if (testPatient) {
+            patient = testPatient;
+          } else {
+            // Crear paciente de prueba si no existe ninguno
+            const { data: newPatient, error } = await supabase
+              .from('patients')
+              .insert({
+                token: 'test-token',
+                name: 'Paciente de Prueba',
+                dni: '12345678',
+                email: 'test@example.com',
+                procedure: 'Evaluación Pre-anestésica',
+                procedure_date: new Date().toISOString().split('T')[0]
+              })
+              .select()
+              .single();
+
+            if (error) throw error;
+            patient = newPatient;
+          }
         }
 
-        // Verificar el progreso del paciente usando función backend
-        await checkPatientProgressWithValidation();
+        setPatient(patient);
+        setCurrentToken(testToken);
+
+        // Verificar el progreso del paciente usando función backend con el token correcto
+        await checkPatientProgressWithValidation(testToken);
       } catch (error) {
         console.error('Error loading test patient:', error);
         toast({
@@ -82,13 +102,11 @@ export default function TestTokenDashboard() {
     loadTestPatient();
   }, [toast]);
 
-  const checkPatientProgressWithValidation = async () => {
-    if (!patient) return;
-
+  const checkPatientProgressWithValidation = async (patientToken: string) => {
     try {
       // Usar función backend para obtener el paso actual
       const { data: currentStepResult, error } = await supabase
-        .rpc('get_current_step_by_token', { patient_token: 'test-token' });
+        .rpc('get_current_step_by_token', { patient_token: patientToken });
 
       if (error) {
         console.error('Error getting current step:', error);
@@ -124,7 +142,7 @@ export default function TestTokenDashboard() {
       // Validar acceso al paso usando función backend
       const { data: validation, error } = await supabase
         .rpc('validate_step_access', { 
-          patient_token: 'test-token', 
+          patient_token: currentToken, 
           target_step: targetStep 
         });
 
@@ -160,7 +178,7 @@ export default function TestTokenDashboard() {
     try {
       const { data: success, error } = await supabase
         .rpc('mark_step_completed', { 
-          patient_token: 'test-token', 
+          patient_token: currentToken, 
           step_name: stepName 
         });
 
