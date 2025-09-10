@@ -173,27 +173,28 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
 Fecha: ${new Date().toLocaleDateString()}
       `;
 
-      // For creating consents, we need to temporarily handle this differently
-      // since the informed_consents table still requires staff access
-      // We'll need to create a secure function for this too, but for now
-      // let's show a placeholder consent document
-      const tempConsent = {
-        id: 'temp-consent-id',
-        patient_id: patient.id,
-        consent_type: 'pre_anesthetic',
-        content: consentContent,
-        accepted: false,
-        signature_data: null,
-        accepted_at: null,
-        created_at: new Date().toISOString()
-      };
+      // Create actual consent record in database using secure function
+      const { data: newConsent, error: createError } = await supabase
+        .rpc('create_consent_by_token', {
+          patient_token: patientId,
+          consent_type_param: 'pre_anesthetic',
+          content_param: consentContent
+        });
 
-      setConsent(tempConsent);
-      
-      toast({
-        title: "Consentimiento cargado",
-        description: "Documento de consentimiento preparado para su firma.",
-      });
+      if (createError) {
+        throw createError;
+      }
+
+      const consentRecord = newConsent?.[0];
+      if (consentRecord) {
+        setConsent(consentRecord);
+        toast({
+          title: "Consentimiento cargado",
+          description: "Documento de consentimiento preparado para su firma.",
+        });
+      } else {
+        throw new Error('Failed to create consent record');
+      }
     } catch (error) {
       console.error('Error creating consent:', error);
       toast({
@@ -313,34 +314,7 @@ Fecha: ${new Date().toLocaleDateString()}
     try {
       const signatureData = canvas.toDataURL();
 
-      // For temporary consent, we can't actually save to the database yet
-      // We'll use the secure function when available, for now just simulate success
-      if (consent.id === 'temp-consent-id') {
-        // Update local state
-        setConsent({
-          ...consent,
-          accepted: true,
-          signature_data: signatureData,
-          accepted_at: new Date().toISOString()
-        });
-
-        toast({
-          title: "¡Proceso Completado!",
-          description: "Consentimiento firmado exitosamente.",
-        });
-
-        // Update patient status to completed using secure function
-        await supabase.rpc('update_patient_by_token', {
-          patient_token: patientId,
-          new_status: 'Completado'
-        });
-
-
-        onComplete();
-        return;
-      }
-
-      // For existing consents (when loaded from database), use secure function
+      // Update consent using secure function
       const { error } = await supabase
         .rpc('update_consent_by_token', {
           patient_token: patientId,
@@ -363,7 +337,6 @@ Fecha: ${new Date().toLocaleDateString()}
         patient_token: patientId,
         new_status: 'Completado'
       });
-
 
       onComplete();
 

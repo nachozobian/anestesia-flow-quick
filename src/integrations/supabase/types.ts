@@ -380,6 +380,23 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      create_consent_by_token: {
+        Args: {
+          consent_type_param: string
+          content_param: string
+          patient_token: string
+        }
+        Returns: {
+          accepted: boolean
+          accepted_at: string
+          consent_type: string
+          content: string
+          created_at: string
+          id: string
+          patient_id: string
+          signature_data: string
+        }[]
+      }
       get_conversation_summary_by_token: {
         Args: { patient_token: string }
         Returns: {
