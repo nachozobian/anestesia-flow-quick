@@ -155,13 +155,11 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
         content: msg.content
       }));
 
-      // Get AI response using the openai-chat function
-      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('openai-chat', {
+      // Get AI response using the relay-aws-agent function
+      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('relay-aws-agent', {
         body: {
-          message: input.trim(),
-          patientData: patientData,
-          conversationHistory: conversationHistory,
-          patientToken: patientId // Pass the token for secure operations
+          sessionId: patientId, // Use patient token as session ID
+          message: input.trim()
         }
       });
 
@@ -272,13 +270,11 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
         content: msg.content
       }));
 
-      // Force generation of recommendations
-      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('openai-chat', {
+      // Force generation of recommendations using AWS agent
+      const { data: aiResponse, error: aiError } = await supabase.functions.invoke('relay-aws-agent', {
         body: {
-          message: "Basándome en toda la información recopilada durante nuestra evaluación preanestésica, por favor genera recomendaciones médicas específicas para este paciente.",
-          patientData: patientData,
-          conversationHistory: conversationHistory,
-          patientToken: patientId
+          sessionId: patientId,
+          message: "Basándome en toda la información recopilada durante nuestra evaluación preanestésica, por favor genera recomendaciones médicas específicas para este paciente."
         }
       });
 
