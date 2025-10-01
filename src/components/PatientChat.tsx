@@ -167,21 +167,14 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
         throw aiError;
       }
 
-      // Check if recommendations were generated
-      if (aiResponse.recommendations_generated) {
-        setRecommendationsGenerated(true);
-        setCanComplete(true);
-        toast({
-          title: "Consulta Completada",
-          description: "El asistente ha generado recomendaciones médicas específicas para usted. Ya puede finalizar la consulta.",
-        });
-      }
+      // Parse AWS agent response
+      const answer = aiResponse.body?.answer || 'Lo siento, hubo un error procesando su mensaje. Por favor intente nuevamente.';
 
       // Save AI response using secure function
       await supabase.rpc('add_conversation_message_by_token', {
         patient_token: patientId,
         message_role: 'assistant',
-        message_content: aiResponse.response || 'Lo siento, hubo un error procesando su mensaje. Por favor intente nuevamente.'
+        message_content: answer
       });
 
       // Reload conversation
@@ -282,21 +275,24 @@ const PatientChat = ({ patientId, onComplete }: PatientChatProps) => {
         throw aiError;
       }
 
-      // Check if recommendations were generated
-      if (aiResponse.recommendations_generated) {
-        setRecommendationsGenerated(true);
-        setCanComplete(true);
-        toast({
-          title: "Recomendaciones Generadas",
-          description: "Se han generado recomendaciones médicas específicas basadas en la información disponible.",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "No se pudieron generar recomendaciones en este momento. Intente nuevamente.",
-          variant: "destructive"
-        });
-      }
+      // Parse AWS agent response and save
+      const answer = aiResponse.body?.answer || 'Lo siento, hubo un error procesando su mensaje.';
+      
+      await supabase.rpc('add_conversation_message_by_token', {
+        patient_token: patientId,
+        message_role: 'assistant',
+        message_content: answer
+      });
+
+      setRecommendationsGenerated(true);
+      setCanComplete(true);
+      
+      loadConversation();
+      
+      toast({
+        title: "Recomendaciones Generadas",
+        description: "Se han generado recomendaciones médicas específicas basadas en la información disponible.",
+      });
 
     } catch (error) {
       console.error('Error generating recommendations:', error);
