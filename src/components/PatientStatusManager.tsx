@@ -578,8 +578,55 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
     generatePDFWithData(patient);
   };
 
-  const handleSaveAndGeneratePDF = (editedData: any) => {
+  const handleSaveAndGeneratePDF = async (editedData: any) => {
     if (editingPatient) {
+      // Actualiza el estado local para reflejar los cambios editados
+      setPatientReports(prev => ({
+        ...prev,
+        [editingPatient.id]: {
+          ...prev[editingPatient.id],
+          ...editedData
+        }
+      }));
+
+      // Guardar los cambios en el backend (Supabase)
+      try {
+        // Actualiza los datos principales del paciente
+        await supabase
+          .from('patients')
+          .update({
+            name: editedData.name,
+            dni: editedData.dni,
+            email: editedData.email,
+            phone: editedData.phone,
+            birth_date: editedData.birth_date,
+            procedure: editedData.procedure,
+            procedure_date: editedData.procedure_date
+          })
+          .eq('id', editingPatient.id);
+
+        // Actualiza las respuestas médicas si existen
+        if (editedData.responses) {
+          await supabase
+            .from('patient_responses')
+            .update(editedData.responses as any)
+            .eq('patient_token', editingPatient.token);
+        }
+
+        // Actualiza recomendaciones si existen
+        if (editedData.recommendations) {
+          // Aquí podrías actualizar recomendaciones si tienes una tabla específica
+          // await supabase.from('patient_recommendations').update(...)
+        }
+        // Puedes agregar más actualizaciones según tu modelo de datos
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'No se pudo guardar el informe en el backend',
+          variant: 'destructive',
+        });
+      }
+
       generatePDFWithData(editingPatient, editedData);
       setEditingPatient(null);
     }
