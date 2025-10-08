@@ -881,7 +881,7 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
                     <TableHead>Fecha Cirugía</TableHead>
                     <TableHead>Estado</TableHead>
                     {canEditStatus && <TableHead>Acciones</TableHead>}
-                    {canEditStatus && <TableHead>SMS</TableHead>}
+                    {/* Eliminado SMS */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -984,19 +984,7 @@ Comprendo que ningún procedimiento médico está libre de riesgos y que no se m
                           </TableCell>
                         )}
                         {canEditStatus && (
-                          <TableCell>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                sendSMSManually(patient);
-                              }}
-                              disabled={!patient.procedure_date}
-                            >
-                              Enviar SMS
-                            </Button>
-                          </TableCell>
+                          null
                         )}
                       </TableRow>
                       
