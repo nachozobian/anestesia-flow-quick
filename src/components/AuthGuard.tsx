@@ -168,7 +168,8 @@ export const AuthGuard = ({ children, requiredRoles = [] }: AuthGuardProps) => {
     );
   }
 
-  if (requiredRoles.length > 0 && (!userRole || !requiredRoles.includes(userRole))) {
+  // Prevent access-denied flash: only show after userRole is loaded
+  if (requiredRoles.length > 0 && userRole !== null && !requiredRoles.includes(userRole)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Card className="w-full max-w-md">
