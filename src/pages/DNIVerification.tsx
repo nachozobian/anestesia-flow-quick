@@ -12,6 +12,11 @@ const DNIVerification = () => {
   const [dni, setDni] = useState('');
   const [securityCode, setSecurityCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  // Redirigir a la página de reenvío de SMS
+  const handleResendSMS = () => {
+    navigate("/resend-sms");
+  };
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -129,6 +134,15 @@ const DNIVerification = () => {
                   maxLength={6}
                 />
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full mt-2"
+                onClick={handleResendSMS}
+                disabled={loading}
+              >
+                Reenviar código por SMS
+              </Button>
             </div>
             <Button 
               type="submit" 
@@ -140,7 +154,7 @@ const DNIVerification = () => {
           </form>
           <div className="mt-6 text-center">
             <p className="text-sm text-muted-foreground">
-              ¿No recibió el código de seguridad? Contacte a su centro médico para obtener asistencia.
+              ¿No recibió el código de seguridad? Puede solicitar el reenvío o contactar a su centro médico para obtener asistencia.
             </p>
           </div>
         </CardContent>
