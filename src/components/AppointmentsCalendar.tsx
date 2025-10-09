@@ -181,9 +181,9 @@ export const AppointmentsCalendar = () => {
             head_row: "flex w-full",
             head_cell: "flex-1 text-center text-muted-foreground rounded-md font-normal text-sm p-2",
             row: "flex w-full",
-            cell: "flex-1 h-14 text-center text-sm p-1 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
-            day: "h-12 w-full p-0 font-normal aria-selected:opacity-100 flex items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground",
-            day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+            cell: "flex-1 h-14 text-center text-sm p-1 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+            day: "h-12 w-full p-0 font-normal aria-selected:opacity-100 flex items-center justify-center rounded-md hover:bg-gray-100 hover:text-accent-foreground",
+            day_selected: "bg-blue-600 text-white hover:bg-blue-700 hover:text-white focus:bg-blue-600 focus:text-white !bg-blue-600 !text-white",
             day_today: "bg-accent text-accent-foreground font-semibold",
             day_outside: "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
             day_disabled: "text-muted-foreground opacity-50",
@@ -194,7 +194,7 @@ export const AppointmentsCalendar = () => {
             hasAppointments: datesWithAppointments,
           }}
           modifiersClassNames={{
-            hasAppointments: "bg-primary text-primary-foreground font-bold hover:bg-primary/90",
+            hasAppointments: "bg-green-500 text-white font-bold hover:bg-green-600",
           }}
         />
       </div>
@@ -219,9 +219,9 @@ export const AppointmentsCalendar = () => {
                 key={day.toISOString()}
                 className={cn(
                   "p-3 border rounded-lg cursor-pointer transition-colors",
-                  isSelected && "bg-primary text-primary-foreground",
-                  !isSelected && hasAppointments && "bg-accent border-primary",
-                  !isSelected && !hasAppointments && "hover:bg-muted"
+                  isSelected && "bg-blue-600 text-white border-blue-600",
+                  !isSelected && hasAppointments && "bg-green-500 text-white border-green-500",
+                  !isSelected && !hasAppointments && "hover:bg-gray-100"
                 )}
                 onClick={() => setSelectedDate(day)}
               >
